@@ -5,6 +5,7 @@
 #include <tuple>
 #include <memory>
 #include <map>
+#include <unordered_set>
 #include <unordered_map>
 #include <iostream>
 #include <algorithm>
@@ -17,6 +18,8 @@ using Node = k_factor_tree_node;
 
 private:
     Node *root;
+    size_t lambda, tau_l, tau_u;
+    std::unordered_set<char> delimiters;
     //std::string text;
     std::vector<Node*> node_vector; // debug only
     std::vector<std::pair<size_t, size_t>> min_factors;
@@ -27,19 +30,21 @@ private:
 
     size_t dfs_preSum(Node* node);
     void gen_failure_links(const std::string &text);
-    void gen_masked_notation(const std::string &text, size_t lambda);
-    void gen_mf(const std::string &text, size_t lower_bound, size_t upper_bound);
+    void gen_masked_notation(const std::string &text);
+    void gen_mf(const std::string &text, size_t tau_l, size_t tau_u);
     void insert(const std::string &text, size_t start, size_t end, size_t lambda); // [start, end)
 
 public:
     k_factor_tree(){}
-    k_factor_tree(const std::string &text, size_t lambda, size_t lower_bound, size_t upper_bound);
+    k_factor_tree(const std::string &text, size_t lambda, size_t tau_l, size_t tau_u, const std::string &delimiter);
     size_t count(std::string &text, std::string &pattern);
-    void gen_masked_text(const std::string &text, std::string &masked_text, size_t lambda);
+    void gen_masked_text(const std::string &text, std::string &masked_text);
     size_t get_node_cnt() { return node_vector.size(); }
     double get_coverage_rate() { return coverage_rate; }
     std::vector<std::pair<size_t, size_t>> get_min_factors() { return min_factors; }
     std::vector<std::pair<size_t, size_t>> get_masked_notation() { return masked_notations; }
+    void Serialize (std::ostream &out);
+    void Load (std::istream &in);
     ~k_factor_tree(){
         for (auto node : node_vector) {
             delete node;
@@ -73,6 +78,25 @@ public:
     }
     */
 };
+void k_factor_tree::Serialize (std::ostream &out) {
+    out << lambda << "\t" << tau_l << "\t" << tau_u << "\t";
+    for (auto c : delimiters) { out << c; }
+    out << "\t" << min_factors.size() << "\n";
+    for (auto [a, b] : min_factors) { out << a << "\t" << b << "\n"; }
+}
+
+void k_factor_tree::Load (std::istream &in) {
+    std::string tmp;
+    size_t n;
+    in >> lambda >> tau_l >> tau_u >> tmp >> n;
+    for (auto c : tmp) { delimiters.insert(c); }
+    while (n > 0) {
+        size_t a, b;
+        in >> a >> b;
+        min_factors.push_back({a, b});
+        n--;
+    }
+}
 
 void k_factor_tree::gen_failure_links(const std::string &text) {
     std::queue<Node*> que;
@@ -120,13 +144,15 @@ void k_factor_tree::gen_failure_links(const std::string &text) {
     }
 }
 
-void k_factor_tree::gen_masked_text(const std::string &text, std::string &masked_text, size_t lambda) {
-    size_t terminal_symbol = '#'; // TODO: hard code
+void k_factor_tree::gen_masked_text(const std::string &text, std::string &masked_text) {
+    gen_masked_notation(text);
+
+    size_t masked_symbol = 255; // TODO: hard code
     size_t n = text.size();
     if (lambda == 0) { lambda = text.size(); }
     if (masked_notations.size() == 0) { throw std::invalid_argument("masked_notations is empty"); }
 
-    masked_text.assign(n, terminal_symbol);
+    masked_text.assign(n, masked_symbol);
     for (auto v : masked_notations) {
         for (size_t i = std::get<0>(v); i <= std::get<1>(v); i++) {
             masked_text[i] = text[i];
@@ -134,19 +160,19 @@ void k_factor_tree::gen_masked_text(const std::string &text, std::string &masked
     }
 }
 
-void k_factor_tree::gen_mf(const std::string &text, size_t lower_bound, size_t upper_bound) {
+void k_factor_tree::gen_mf(const std::string &text, size_t tau_l, size_t tau_u) {
     size_t n = text.size(), l = 0, r = 0;
     Node* node = root;
     while (r < n) {
         char c = text[r];
-        while (r < n && !node->is_leaf && node->links[c]->cnt > upper_bound && c != '$' && c != '#') { // TODO: hard code
+        while (r < n && !node->is_leaf && node->links[c]->cnt > tau_u && delimiters.count(c) == 0) {
             r += node->links[c]->get_length(0);
             node = node->links[c];
             c = text[r];
         }
         if (r >= n) {
             break;
-        } else if (c == '$' || c == '#') { // TODO: hard code
+        } else if (delimiters.count(c)) {
             node = root;
             l = ++r;
         } else if (node->is_leaf) {
@@ -156,12 +182,12 @@ void k_factor_tree::gen_mf(const std::string &text, size_t lower_bound, size_t u
             //std::cout << "a,";
         } else {
             // Node* next_node = node->suffix_link;
-            while (node != root && node->suffix_link->links[c]->cnt <= upper_bound) {
+            while (node != root && node->suffix_link->links[c]->cnt <= tau_u) {
                 l++;
                 node = node->suffix_link;
             }
-            // if (node->suffix_link->links[c]->des_node->cnt >= lower_bound) {
-            if (node->links[c]->cnt >= lower_bound) {
+            // if (node->suffix_link->links[c]->des_node->cnt >= tau_l) {
+            if (node->links[c]->cnt >= tau_l) {
                 min_factors.push_back({l, r});
             }
             l++;
@@ -202,7 +228,7 @@ size_t k_factor_tree::dfs_preSum(Node* node) {
     return node->cnt;
 }
 
-void k_factor_tree::gen_masked_notation(const std::string &text, size_t lambda) {
+void k_factor_tree::gen_masked_notation(const std::string &text) {
     if (min_factors.size() == 0) { throw std::invalid_argument("min_factors is empty"); }
 
     size_t n = text.size(), start = 0, end = n - 1;
@@ -228,25 +254,29 @@ void k_factor_tree::gen_masked_notation(const std::string &text, size_t lambda) 
     coverage_rate = 1.0 * cnt / n;
 }
 
-k_factor_tree::k_factor_tree(const std::string &text, size_t lambda, size_t lower_bound, size_t upper_bound) {
+k_factor_tree::k_factor_tree(const std::string &text, size_t lambda, size_t tau_l, size_t tau_u, const std::string &delimiter): 
+    lambda(lambda), tau_l(tau_l), tau_u(tau_u)
+{
     //std::chrono::steady_clock::time_point t1, t2, t3, t4, t5;
     //t1 = std::chrono::steady_clock::now();
 
+    for (char c : delimiter) { delimiters.insert(c); }
+
     if (lambda == 0) { lambda = text.size() + 1; }
-    else if (lambda == 1) { throw std::invalid_argument("lambda can't be 1"); }
+    else if (lambda == 1) { throw std::invalid_argument("lambda can't be 1"); } // for the gen_masked_notation(), but not sure if necessary
     if (text.size() == 0) { throw std::invalid_argument("input text is empty"); }
-    if (text[0] == '$' || text[0] == '#') { throw std::invalid_argument("input text start with terminal symbol"); } // TODO: hard code
-    if (lower_bound > upper_bound) { throw std::invalid_argument("lower_bound > upper_bound"); }
-    
+    if (delimiters.count(text[0])) { throw std::invalid_argument("input text start with delimiter symbol"); }
+    if (tau_l > tau_u) { throw std::invalid_argument("tau_l > tau_u"); }
+
     size_t n = text.size();
     root = new Node();
     root->suffix_link = root;
     node_vector.push_back(root);
     size_t prev = 0, i = 0;
     while (prev < n && i < n) {
-        while (prev < n && (text[prev] == '$' || text[prev] == '#')) { prev++; } // TODO: hard code
+        while (prev < n && delimiters.count(text[prev])) { prev++; }
         i = prev + 1;
-        while (i < n && (text[i] != '$' && text[i] != '#')) { i++; } // TODO: hard code
+        while (i < n && delimiters.count(text[prev]) == 0) { i++; }
         if (prev < n) { insert(text, prev, i + 1, std::min(lambda, i - prev + 2)); }
         prev = i + 1;
     }
@@ -255,9 +285,9 @@ k_factor_tree::k_factor_tree(const std::string &text, size_t lambda, size_t lowe
     dfs_preSum(root);
     gen_failure_links(text);
     //t3 = std::chrono::steady_clock::now();
-    gen_mf(text, lower_bound, upper_bound);
+    gen_mf(text, tau_l, tau_u);
     //t4 = std::chrono::steady_clock::now();
-    gen_masked_notation(text, lambda);
+    // gen_masked_notation(text, lambda); to be deleted
     //t5 = std::chrono::steady_clock::now();
     //std::string outputDir = "/mnt/f/alg/git/multi-layer-figiss/experiments/ksf_partition.txt";
     //std::ofstream exp_results(outputDir, std::ios_base::app);
