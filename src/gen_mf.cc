@@ -7,7 +7,7 @@
 int main(int argc, char* argv[]) {
     if (argc < 7) {
         std::cerr << "Usage: " << argv[0] 
-                  << " [input text path] [output mf path] [tau_l] [tau_u] [lambda] [delimiter/terminal symbols]" << std::endl;
+                  << " [input text path] [output mf path] [tau_l] [tau_u] [lambda] [symbol to divide each corpus]" << std::endl;
         return 1;
     }
 

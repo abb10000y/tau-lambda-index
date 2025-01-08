@@ -23,11 +23,14 @@ private:
     //std::string text;
     std::vector<Node*> node_vector; // debug only
     std::vector<std::pair<size_t, size_t>> min_factors;
+    std::vector<std::pair<size_t, size_t>> masked_notations;
+    double coverage_rate;
     // size_t lambda;
     //std::unordered_map<size_t, char> position_to_char;
 
     size_t dfs_preSum(Node* node);
     void gen_failure_links(const std::string &text);
+    void gen_masked_notation(const std::string &text);
     void gen_mf(const std::string &text, size_t tau_l, size_t tau_u);
     void insert(const std::string &text, size_t start, size_t end, size_t lambda); // [start, end)
 
@@ -35,7 +38,9 @@ public:
     k_factor_tree(){}
     k_factor_tree(const std::string &text, size_t lambda, size_t tau_l, size_t tau_u, const std::string &delimiter);
     size_t count(std::string &text, std::string &pattern);
+    void gen_masked_text(const std::string &text, std::string &masked_text);
     size_t get_node_cnt() { return node_vector.size(); }
+    double get_coverage_rate() { return coverage_rate; }
     std::vector<std::pair<size_t, size_t>> get_min_factors() { return min_factors; }
     std::vector<std::pair<size_t, size_t>> get_masked_notation() { return masked_notations; }
     void Serialize (std::ostream &out);
@@ -139,6 +144,22 @@ void k_factor_tree::gen_failure_links(const std::string &text) {
     }
 }
 
+void k_factor_tree::gen_masked_text(const std::string &text, std::string &masked_text) {
+    gen_masked_notation(text);
+
+    size_t masked_symbol = 255; // TODO: hard code
+    size_t n = text.size();
+    if (lambda == 0) { lambda = text.size(); }
+    if (masked_notations.size() == 0) { throw std::invalid_argument("masked_notations is empty"); }
+
+    masked_text.assign(n, masked_symbol);
+    for (auto v : masked_notations) {
+        for (size_t i = std::get<0>(v); i <= std::get<1>(v); i++) {
+            masked_text[i] = text[i];
+        }
+    }
+}
+
 void k_factor_tree::gen_mf(const std::string &text, size_t tau_l, size_t tau_u) {
     size_t n = text.size(), l = 0, r = 0;
     Node* node = root;
@@ -205,6 +226,32 @@ size_t k_factor_tree::dfs_preSum(Node* node) {
         node->cnt += dfs_preSum(child);
     }
     return node->cnt;
+}
+
+void k_factor_tree::gen_masked_notation(const std::string &text) {
+    if (min_factors.size() == 0) { throw std::invalid_argument("min_factors is empty"); }
+
+    size_t n = text.size(), start = 0, end = n - 1;
+    if (std::get<1>(min_factors[0]) + 1 > lambda) { start = std::get<1>(min_factors[0]) + 1 - lambda; }
+    if (std::get<0>(min_factors[0]) + lambda - 1 < n) { end = std::get<0>(min_factors[0]) + lambda - 1; }
+    for (size_t i = 1, m = min_factors.size(); i < m; i++) {
+        size_t next_start = 0, next_end = n - 1;
+        if (std::get<1>(min_factors[i]) + 1 > lambda) { next_start = std::get<1>(min_factors[i]) + 1 - lambda; }
+        if (std::get<0>(min_factors[i]) + lambda - 1 < n) { next_end = std::get<0>(min_factors[i]) + lambda - 1; }
+        if (next_start <= end) { end = next_end; }
+        else {
+            masked_notations.push_back({start, end});
+            start = next_start;
+            end = next_end;
+        }
+    }
+    masked_notations.push_back({start, end});
+
+    size_t cnt = 0;
+    for (auto v : masked_notations) {
+        cnt += std::get<1>(v) - std::get<0>(v) + 1;
+    }
+    coverage_rate = 1.0 * cnt / n;
 }
 
 k_factor_tree::k_factor_tree(const std::string &text, size_t lambda, size_t tau_l, size_t tau_u, const std::string &delimiter): 

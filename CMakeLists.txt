@@ -8,8 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # 設定優化選項（與 -O3 一致）
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -w -DNDEBUG")
 
+add_executable(tau-lambda-index src/main.cc)
 add_executable(gen_mf src/gen_mf.cc)
-add_executable(gen_index src/gen_index.cc)
 
 # 啟用測試
 enable_testing()
