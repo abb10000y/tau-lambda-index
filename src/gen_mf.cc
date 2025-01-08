@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
     inputFile >> intputContent;
 
     k_factor_tree ksf(intputContent, lambda, tau_l, tau_u, delimiter);
-    ksf.Serialize(outputFile);
+    ksf.Serialize_min_factors(outputFile);
 
     inputFile.close();
     outputFile.close();

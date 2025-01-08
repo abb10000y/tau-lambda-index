@@ -1,15 +1,11 @@
 #pragma once
 
 #include <iostream>
-#include <filesystem>
 #include <fstream>
 #include <vector>
 #include <string>
-#include <set>
 #include <algorithm>
-#include <string_view>
 #include <exception>
-#include <filesystem>
 #include <unordered_set>
 #include <chrono>
 #include <sys/resource.h>
@@ -20,62 +16,71 @@
 #include "symbol_table/symbol_table.h"
 #include "k_factor_tree/k_factor_tree.h"
 #include "util/utility.h"
+#include "self_indexes/r-index/internal/r_index.hpp"
 
 
 class tau_lambda_index {
 public:
     tau_lambda_index(){}
-    tau_lambda_index(std::string text_path, std::string mf_path);
-    void serialize(std::ofstream &out_path);
-    void load(std::ifstream &in_path);
+    tau_lambda_index(std::string text_path, std::string mf_path, size_t self_index_type);
+    void serialize(std::ofstream &out);
+    void load(std::ifstream &in);
     void load_min_factors(std::ifstream &in);
     std::vector<ulint> locate(std::string &pattern);
     bool locate_xbwt(std::string &pattern);
     std::vector<ulint> locate_r_index(std::string &pattern);
-    double get_coverage_rate() { return coverage_rate; }
+    double get_masked_ratio() { return masked_ratio; }
+    void log(std::ofstream& out) {
+        out << "tau_l, tau_u, lambda: " << tau_l << ", " << tau_u << ", " << lambda << "\n";
+        out << "bwt_runs: " << r_index->number_of_runs() << "\n";
+        out << "masked_ratio: " << masked_ratio << "\n" ;
+    }
 
 private:
     // bool is_raw_r_index = false; // TODO: judgement not finished
-    std::string text;
+    size_t self_index_type, tau_l, tau_u, lambda;
+    double masked_ratio;
     XBWT* xbwt {new XBWT()}; // TODO: memory leak
     SymbolTable symbol_table_;
+    std::vector<std::pair<size_t, size_t>> min_factors; // TODO: change to local variable?
+    //std::unordered_set<char> delimiters; // TODO: no need?
     uint64_t t_symbol = static_cast<uint64_t>(1); // terminate symbols
-    size_t tau_l, tau_u, lambda;
-    std::vector<std::pair<size_t, size_t>> min_factors;
-    std::unordered_set<char> delimiters;
-    double coverage_rate;
 
-    void build_XBWT();
+    // self_indexes
+    ri::r_index<> *r_index {new ri::r_index<>()};
+
+    void build_XBWT(const std::string &text);
     void gen_masked_text(const std::string &text, std::string &masked_text);
 };
 
 void tau_lambda_index::gen_masked_text(const std::string &text, std::string &masked_text) {
-    if (min_factors.size() == 0) { throw std::invalid_argument("min_factors is empty"); }
     std::vector<std::pair<size_t, size_t>> masked_notations;
-
-    // mark which parts should be kept
-    size_t n = text.size(), start = 0, end = n - 1;
-    if (std::get<1>(min_factors[0]) + 1 > lambda) { start = std::get<1>(min_factors[0]) + 1 - lambda; }
-    if (std::get<0>(min_factors[0]) + lambda - 1 < n) { end = std::get<0>(min_factors[0]) + lambda - 1; }
-    for (size_t i = 1, m = min_factors.size(); i < m; i++) {
-        size_t next_start = 0, next_end = n - 1;
-        if (std::get<1>(min_factors[i]) + 1 > lambda) { next_start = std::get<1>(min_factors[i]) + 1 - lambda; }
-        if (std::get<0>(min_factors[i]) + lambda - 1 < n) { next_end = std::get<0>(min_factors[i]) + lambda - 1; }
-        if (next_start <= end) { end = next_end; }
-        else {
-            masked_notations.push_back({start, end});
-            start = next_start;
-            end = next_end;
+    size_t n = text.size();
+    if (min_factors.size() > 0) {
+        // mark which parts should be kept
+        size_t start = 0, end = n - 1;
+        if (std::get<1>(min_factors[0]) + 1 > lambda) { start = std::get<1>(min_factors[0]) + 1 - lambda; }
+        if (std::get<0>(min_factors[0]) + lambda - 1 < n) { end = std::get<0>(min_factors[0]) + lambda - 1; }
+        for (size_t i = 1, m = min_factors.size(); i < m; i++) {
+            size_t next_start = 0, next_end = n - 1;
+            if (std::get<1>(min_factors[i]) + 1 > lambda) { next_start = std::get<1>(min_factors[i]) + 1 - lambda; }
+            if (std::get<0>(min_factors[i]) + lambda - 1 < n) { next_end = std::get<0>(min_factors[i]) + lambda - 1; }
+            if (next_start <= end) { end = next_end; }
+            else {
+                masked_notations.push_back({start, end});
+                start = next_start;
+                end = next_end;
+            }
         }
+        masked_notations.push_back({start, end});
     }
-    masked_notations.push_back({start, end});
 
-    // calculate the coverage_rate, (# of masked characters) / |text|
+    // calculate the masked_ratio, (# of masked characters) / |text|
     size_t cnt = 0;
     for (auto v : masked_notations) {
         cnt += std::get<1>(v) - std::get<0>(v) + 1;
     }
-    coverage_rate = 1.0 * cnt / n;
+    masked_ratio = 1.0 - 1.0 * cnt / n;
 
     // generate the masked text
     size_t masked_symbol = 255; // TODO: hard code
@@ -90,7 +95,7 @@ void tau_lambda_index::gen_masked_text(const std::string &text, std::string &mas
     }
 }
 
-void tau_lambda_index::build_XBWT() {
+void tau_lambda_index::build_XBWT(const std::string &text) {
     std::vector<uint64_t> concated_mf; // each substring is separated by terminal_symbol (t_symbol)
     for (auto [b, e] : min_factors) {
         for (size_t i = e; i >= b; i--) { concated_mf.push_back(text[i] + t_symbol); } // reverse insert
@@ -110,7 +115,7 @@ void tau_lambda_index::load_min_factors(std::ifstream &in) {
     std::string tmp;
     size_t n;
     in >> lambda >> tau_l >> tau_u >> tmp >> n;
-    for (auto c : tmp) { delimiters.insert(c); }
+    // for (auto c : tmp) { delimiters.insert(c); }
     while (n > 0) {
         size_t a, b;
         in >> a >> b;
@@ -119,7 +124,9 @@ void tau_lambda_index::load_min_factors(std::ifstream &in) {
     }
 }
 
-tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path) {
+// Constructor
+tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, size_t self_index_type): self_index_type(self_index_type) {
+    std::string text;
     std::ifstream text_in(text_path);
     if (!text_in.is_open()) {
         std::cerr << "Error: Could not open input text file " << text_path << std::endl;
@@ -136,12 +143,12 @@ tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path) {
     load_min_factors(mf_in);
     mf_in.close();
 
-    build_XBWT();
+    build_XBWT(text);
     std::string maskedTextPath = "tmpMaskedText";
     std::string maskedText;
     std::ofstream tmpMaskedTextfile(maskedTextPath);
     if (!tmpMaskedTextfile.is_open()) {
-        std::cerr << "Error: Could not open output tmpMaskedText file " << inputMfPath << std::endl;
+        std::cerr << "Error: Could not open output tmpMaskedText file " << maskedTextPath << std::endl;
         return;
     }
 
@@ -150,57 +157,63 @@ tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path) {
     tmpMaskedTextfile.close();
 
     // TODO: generate the self-index
+    if (self_index_type == 1) {
+        std::string input;
+        std::ifstream fs(maskedTextPath);
+        std::stringstream buffer;
+        buffer << fs.rdbuf();
+
+        input = buffer.str();
+        r_index = new ri::r_index<>(input, true);
+    } else if (self_index_type == 2) {
+
+    }
 
     if (std::remove(maskedTextPath.c_str()) != 0) {
         std::cerr << "Not able to delete the masked text tmp file" << std::endl;
-        return 1;
+        return;
     }
 }
 
-void tau_lambda_index::serialize(std::ofstream &out_path) {
-    // sdsl::write_member(is_raw_r_index, out_path);
-    // sdsl::write_member(tau_l, out_path);
-    // sdsl::write_member(tau_u, out_path);
-    // sdsl::write_member(lambda, out_path);
-    // if (is_raw_r_index) {
-    //     r_index->serialize(out_path);
-    // } else {
-    //     symbol_table_.Serialize(out_path);
-    //     xbwt->Serialize(out_path);
-    //     r_index->serialize(out_path);
-    // }
+void tau_lambda_index::serialize(std::ofstream &out) {
+    sdsl::write_member(self_index_type, out);
+    sdsl::write_member(tau_l, out);
+    sdsl::write_member(tau_u, out);
+    sdsl::write_member(lambda, out);
+    sdsl::write_member(masked_ratio, out);
+    symbol_table_.Serialize(out);
+    xbwt->Serialize(out);
+    if (self_index_type == 1) {
+        r_index->serialize(out);
+    }
 }
 
-void tau_lambda_index::load(std::ifstream &in_path) {
-    // sdsl::read_member(is_raw_r_index, in_path);
-    // sdsl::read_member(tau_l, in_path);
-    // sdsl::read_member(tau_u, in_path);
-    // sdsl::read_member(lambda, in_path);
-    // if (is_raw_r_index) {
-    //     r_index->load(in_path);
-    // } else {
-    //     symbol_table_.Load(in_path);
-    //     xbwt->Load(in_path);
-    //     r_index->load(in_path);
-    // }
+void tau_lambda_index::load(std::ifstream &in) {
+    sdsl::read_member(self_index_type, in);
+    sdsl::read_member(tau_l, in);
+    sdsl::read_member(tau_u, in);
+    sdsl::read_member(lambda, in);
+    sdsl::read_member(masked_ratio, in);
+    symbol_table_.Load(in);
+    xbwt->Load(in);
+    if (self_index_type == 1) {
+        r_index->load(in);
+    }
 }
 
 std::vector<ulint> tau_lambda_index::locate(std::string &pattern) {
-    // vector<ulint> result;
-    // if (is_raw_r_index) {
-    //     result = r_index->locate_all_tau(pattern, tau_l, tau_u);
-    // } else {
-    //     sdsl::int_vector<> pattern_int;
-    //     pattern_int.width(64);
-    //     pattern_int.resize(pattern.size());
-    //     for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[pattern[i] + t_symbol]; }
-    //     // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
+    vector<ulint> result;
+    sdsl::int_vector<> pattern_int;
+    pattern_int.width(64);
+    pattern_int.resize(pattern.size());
+    for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[pattern[i] + t_symbol]; }
+    // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
         
-    //     if (xbwt->match_if_exist(pattern_int)) {
-    //         result = r_index->locate_all_tau(pattern, tau_l, tau_u);
-    //     }
-    // }
-    // return result;
+    if (xbwt->match_if_exist(pattern_int)) {
+        result = r_index->locate_all_tau(pattern, tau_l);
+    }
+
+    return result;
 }
 
 bool tau_lambda_index::locate_xbwt(std::string &pattern) {

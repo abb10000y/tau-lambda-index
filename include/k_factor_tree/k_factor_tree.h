@@ -37,9 +37,7 @@ public:
     size_t count(std::string &text, std::string &pattern);
     size_t get_node_cnt() { return node_vector.size(); }
     std::vector<std::pair<size_t, size_t>> get_min_factors() { return min_factors; }
-    std::vector<std::pair<size_t, size_t>> get_masked_notation() { return masked_notations; }
-    void Serialize (std::ostream &out);
-    void Load (std::istream &in);
+    void Serialize_min_factors (std::ostream &out);
     ~k_factor_tree(){
         for (auto node : node_vector) {
             delete node;
@@ -73,24 +71,11 @@ public:
     }
     */
 };
-void k_factor_tree::Serialize (std::ostream &out) {
+void k_factor_tree::Serialize_min_factors (std::ostream &out) {
     out << lambda << "\t" << tau_l << "\t" << tau_u << "\t";
     for (auto c : delimiters) { out << c; }
     out << "\t" << min_factors.size() << "\n";
     for (auto [a, b] : min_factors) { out << a << "\t" << b << "\n"; }
-}
-
-void k_factor_tree::Load (std::istream &in) {
-    std::string tmp;
-    size_t n;
-    in >> lambda >> tau_l >> tau_u >> tmp >> n;
-    for (auto c : tmp) { delimiters.insert(c); }
-    while (n > 0) {
-        size_t a, b;
-        in >> a >> b;
-        min_factors.push_back({a, b});
-        n--;
-    }
 }
 
 void k_factor_tree::gen_failure_links(const std::string &text) {

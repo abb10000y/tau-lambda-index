@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -w -DNDEBUG")
 
 add_executable(gen_mf src/gen_mf.cc)
-add_executable(gen_index src/gen_index.cc)
+add_executable(gen_index src/gen_index.cc include/util/utility.cc)
 
 # 啟用測試
 enable_testing()
@@ -23,10 +23,12 @@ find_package(GTest REQUIRED)
 #find_package(GTest REQUIRED PATHS "/opt/homebrew/opt/googletest")
 include_directories(${GTEST_INCLUDE_DIR})
 include_directories("/usr/local/include")
-include_directories("/usr/local/include/sdsl")
+
+#include(include/self_indexes/r-index/CMakeLists.txt)
 
 link_directories("/usr/local/lib")
 link_directories(${GTEST_LIBRARY})
+target_link_libraries(gen_index /usr/local/lib/libsdsl.a /usr/local/lib/libdivsufsort.a /usr/local/lib/libdivsufsort64.a)
 
 # 添加測試執行檔案
 add_executable(MyTests 

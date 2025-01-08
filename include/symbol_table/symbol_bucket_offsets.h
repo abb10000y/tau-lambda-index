@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../util/utility.h"
+#include "../util/utility.h"
 #include <utility>
 #include <sdsl/int_vector.hpp>
 #include <sdsl/sd_vector.hpp>

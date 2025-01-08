@@ -15,8 +15,8 @@
 #ifndef R_INDEX_S_H_
 #define R_INDEX_S_H_
 
-#include <definitions.hpp>
-#include <rle_string.hpp>
+#include "definitions.hpp"
+#include "rle_string.hpp"
 #include "sparse_sd_vector.hpp"
 #include "sparse_hyb_vector.hpp"
 #include "utils.hpp"
