@@ -72,7 +72,7 @@ public:
     */
 };
 void k_factor_tree::Serialize_min_factors (std::ostream &out) {
-    out << lambda << "\t" << tau_l << "\t" << tau_u << "\t";
+    out << tau_l << "\t" << tau_u << "\t" << lambda << "\t";
     for (auto c : delimiters) { out << c; }
     out << "\t" << min_factors.size() << "\n";
     for (auto [a, b] : min_factors) { out << a << "\t" << b << "\n"; }
