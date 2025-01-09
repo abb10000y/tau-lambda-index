@@ -126,13 +126,14 @@ void tau_lambda_index::load_min_factors(std::ifstream &in) {
 
 // Constructor
 tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, size_t self_index_type): self_index_type(self_index_type) {
-    std::string text;
     std::ifstream text_in(text_path);
     if (!text_in.is_open()) {
         std::cerr << "Error: Could not open input text file " << text_path << std::endl;
         return;
     }
-    text_in >> text;
+    std::stringstream buffer;
+    buffer << text_in.rdbuf();
+    std::string text = buffer.str();
     text_in.close();
 
     std::ifstream mf_in(mf_path);

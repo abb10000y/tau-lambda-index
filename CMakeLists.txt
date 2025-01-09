@@ -43,7 +43,7 @@ target_include_directories(MyTests PRIVATE
 )
 
 # 連結 Google Test 庫
-target_link_libraries(MyTests ${GTEST_LIBRARIES} pthread sdsl)
+target_link_libraries(MyTests ${GTEST_LIBRARIES} pthread sdsl /usr/local/lib/libdivsufsort.a /usr/local/lib/libdivsufsort64.a)
 
 # 定義測試
 add_test(NAME RunTests COMMAND MyTests)

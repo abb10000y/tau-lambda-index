@@ -30,8 +30,18 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::string intputContent;
-    inputFile >> intputContent;
+    std::stringstream buffer;
+    buffer << inputFile.rdbuf();
+    std::string intputContent = buffer.str();
+    
+    bool arr[256];
+    for (size_t i = 0; i < 256; i++) arr[i] = false;
+    for (char c : intputContent) { arr[c] = true; }
+    std::cout << "existing symbols:\n";
+    for (size_t i = 0; i < 256; i++)
+        if (arr[i])
+            std::cout << i << "\n";
+    std::cout << "end\n";
 
     k_factor_tree ksf(intputContent, lambda, tau_l, tau_u, delimiter);
     ksf.Serialize_min_factors(outputFile);
