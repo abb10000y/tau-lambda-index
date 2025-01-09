@@ -23,7 +23,6 @@ private:
     //std::string text;
     std::vector<Node*> node_vector; // debug only
     std::vector<std::pair<size_t, size_t>> min_factors;
-    // size_t lambda;
     //std::unordered_map<size_t, char> position_to_char;
 
     size_t dfs_preSum(Node* node);
