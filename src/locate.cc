@@ -36,12 +36,9 @@ int main(int argc, char* argv[]) {
     }
 
     // create a tau-lambda-index instance and operate it
-    //std::chrono::steady_clock::time_point t1, t2;
     tau_lambda_index* idx = new tau_lambda_index();
     idx->load(inputIndex);
-    //t1 = std::chrono::steady_clock::now();
     idx->locate(inputPatternFile, outputResultFile);
-    //t2 = std::chrono::steady_clock::now();
 
     inputIndex.close();
     inputPatternFile.close();

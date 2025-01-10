@@ -240,8 +240,8 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
         t1 = std::chrono::steady_clock::now();
         std::vector<uint64_t> results = _locate(pattern);
         t2 = std::chrono::steady_clock::now();
-
-        out << "[" << i << "]\n";
+        std::sort(results.begin(), results.end());
+        out << "pattern [" << (i+1) << "] -- " << results.size() <<  "occurrences\n";
         for (auto r : results) { out << r << "\t"; }
         out << "\n";
         out << "time consuming (us): " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << "\n";
