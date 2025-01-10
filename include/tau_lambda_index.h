@@ -17,6 +17,7 @@
 #include "k_factor_tree/k_factor_tree.h"
 #include "util/utility.h"
 #include "self_indexes/r-index/internal/r_index.hpp"
+#include "self_indexes/r-index/internal/utils.hpp"
 
 
 class tau_lambda_index {
@@ -26,7 +27,7 @@ public:
     void serialize(std::ofstream &out);
     void load(std::ifstream &in);
     void load_min_factors(std::ifstream &in);
-    std::vector<ulint> locate(std::string &pattern);
+    void locate(std::ifstream &in, std::ofstream &out);
     bool locate_xbwt(std::string &pattern);
     std::vector<ulint> locate_r_index(std::string &pattern);
     double get_masked_ratio() { return masked_ratio; }
@@ -37,7 +38,6 @@ public:
     }
 
 private:
-    // bool is_raw_r_index = false; // TODO: judgement not finished
     size_t self_index_type, tau_l, tau_u, lambda;
     double masked_ratio;
     XBWT* xbwt {new XBWT()}; // TODO: memory leak
@@ -51,13 +51,14 @@ private:
 
     void build_XBWT(const std::string &text);
     void gen_masked_text(const std::string &text, std::string &masked_text);
+    std::vector<uint64_t> _locate(std::string &pattern);
 };
 
 void tau_lambda_index::gen_masked_text(const std::string &text, std::string &masked_text) {
     std::vector<std::pair<size_t, size_t>> masked_notations;
     size_t n = text.size();
+    // mark which parts should be kept
     if (min_factors.size() > 0) {
-        // mark which parts should be kept
         size_t start = 0, end = n - 1;
         if (std::get<1>(min_factors[0]) + 1 > lambda) { start = std::get<1>(min_factors[0]) + 1 - lambda; }
         if (std::get<0>(min_factors[0]) + lambda - 1 < n) { end = std::get<0>(min_factors[0]) + lambda - 1; }
@@ -114,7 +115,7 @@ void tau_lambda_index::build_XBWT(const std::string &text) {
 void tau_lambda_index::load_min_factors(std::ifstream &in) {
     std::string tmp;
     size_t n;
-    in >> lambda >> tau_l >> tau_u >> tmp >> n;
+    in >> tau_l >> tau_u >> lambda >> tmp >> n;
     // for (auto c : tmp) { delimiters.insert(c); }
     while (n > 0) {
         size_t a, b;
@@ -202,21 +203,52 @@ void tau_lambda_index::load(std::ifstream &in) {
     }
 }
 
-std::vector<ulint> tau_lambda_index::locate(std::string &pattern) {
-    vector<ulint> result;
+std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
+    vector<uint64_t> result;
     sdsl::int_vector<> pattern_int;
     pattern_int.width(64);
     pattern_int.resize(pattern.size());
     for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[pattern[i] + t_symbol]; }
     // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
-        
-    if (xbwt->match_if_exist(pattern_int)) {
-        result = r_index->locate_all_tau(pattern, tau_l);
+    
+    if (pattern.length() <= lambda && xbwt->match_if_exist(pattern_int)) {
+        if (self_index_type == 1) {
+            result = r_index->locate_all_tau(pattern, tau_l);
+        }
     }
 
     return result;
 }
+void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
+    std::chrono::steady_clock::time_point t1, t2;
 
+    string header;
+	std::getline(in, header);
+
+	size_t n = get_number_of_patterns(header);
+	size_t m = get_patterns_length(header);
+
+    for (size_t i = 0; i < n; i++) {
+        string pattern = string();
+
+		for(size_t j = 0; j < m; j++){
+			char c;
+			in.get(c);
+			pattern += c;
+		}
+
+        t1 = std::chrono::steady_clock::now();
+        std::vector<uint64_t> results = _locate(pattern);
+        t2 = std::chrono::steady_clock::now();
+
+        out << "[" << i << "]\n";
+        for (auto r : results) { out << r << "\t"; }
+        out << "\n";
+        out << "time consuming (us): " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << "\n";
+    }
+}
+
+// TO be deleted
 bool tau_lambda_index::locate_xbwt(std::string &pattern) {
     sdsl::int_vector<> pattern_int;
     pattern_int.width(64);
@@ -227,6 +259,7 @@ bool tau_lambda_index::locate_xbwt(std::string &pattern) {
     return xbwt->match_if_exist(pattern_int);
 }
 
+// TO be deleted
 std::vector<ulint> tau_lambda_index::locate_r_index(std::string &pattern) {
     // vector<ulint> result;
     // result = r_index->locate_all_tau(pattern, tau_l, tau_u);

@@ -5,9 +5,9 @@
 #include "../include/k_factor_tree/k_factor_tree.h"
 
 int main(int argc, char* argv[]) {
-    if (argc < 7) {
+    if (argc < 6) {
         std::cerr << "Usage: " << argv[0] 
-                  << " [input text path] [output mf path] [tau_l] [tau_u] [lambda] [delimiter/terminal symbols]" << std::endl;
+                  << " [input text path] [output mf path] [tau_l] [tau_u] [lambda] [delimiter/terminal symbols](optional)" << std::endl;
         return 1;
     }
 
@@ -16,7 +16,8 @@ int main(int argc, char* argv[]) {
     uint64_t tau_l = std::stod(argv[3]);
     uint64_t tau_u = std::stod(argv[4]);
     uint64_t lambda = std::stod(argv[5]);
-    std::string delimiter = argv[6];
+    std::string delimiter;
+    if (argc >= 7) { delimiter = argv[6]; }
 
     std::ifstream inputFile(inputTextPath);
     if (!inputFile.is_open()) {

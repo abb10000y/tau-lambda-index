@@ -10,6 +10,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -w -DNDEBUG")
 
 add_executable(gen_mf src/gen_mf.cc)
 add_executable(gen_index src/gen_index.cc include/util/utility.cc)
+add_executable(locate src/locate.cc include/util/utility.cc)
 
 # 啟用測試
 enable_testing()
@@ -17,6 +18,11 @@ enable_testing()
 # 設定 Google Test 的路徑
 set(GTEST_INCLUDE_DIR "/opt/homebrew/opt/googletest/include")
 set(GTEST_LIBRARY "/opt/homebrew/opt/googletest/lib")
+set(COMMON_LIBS 
+    /usr/local/lib/libsdsl.a 
+    /usr/local/lib/libdivsufsort.a 
+    /usr/local/lib/libdivsufsort64.a
+)
 
 # 加入 Google Test
 find_package(GTest REQUIRED)
@@ -28,7 +34,8 @@ include_directories("/usr/local/include")
 
 link_directories("/usr/local/lib")
 link_directories(${GTEST_LIBRARY})
-target_link_libraries(gen_index /usr/local/lib/libsdsl.a /usr/local/lib/libdivsufsort.a /usr/local/lib/libdivsufsort64.a)
+target_link_libraries(gen_index ${COMMON_LIBS})
+target_link_libraries(locate ${COMMON_LIBS})
 
 # 添加測試執行檔案
 add_executable(MyTests 
