@@ -34,11 +34,17 @@ int main(int argc, char* argv[]) {
     }
 
     // create a tau-lambda-index instance and operate it
+    tau_lambda_index* idx;
     std::chrono::steady_clock::time_point t1, t2;
     t1 = std::chrono::steady_clock::now();
-    tau_lambda_index* idx = new tau_lambda_index(inputTextPath, inputMfPath, selfIndexType);
-    t2 = std::chrono::steady_clock::now();
+    if (selfIndexType == 1) {
+        idx = new tau_lambda_index(inputTextPath, inputMfPath, selfIndexType);
+    } else if (selfIndexType == 2) {
+        std::string lz77OutPath= outputIndexPath + "_lz77";
+        idx = new tau_lambda_index(inputTextPath, inputMfPath, lz77OutPath, selfIndexType);
+    }
     idx->serialize(outputFile);
+    t2 = std::chrono::steady_clock::now();
 
     if (argc == 6) {
         std::filesystem::path path(inputTextPath);

@@ -7,10 +7,49 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # 設定優化選項（與 -O3 一致）
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -w -DNDEBUG")
+set(LZ77_Ref
+    include/self_indexes/LZ/src/utils.cpp
+    include/self_indexes/LZ/src/mapper.cpp
+    include/self_indexes/LZ/src/static_selfindex.cpp
+    include/self_indexes/LZ/src/static_selfindex_none.cpp
+    include/self_indexes/LZ/src/static_selfindex_lz77.cpp
+    include/self_indexes/LZ/src/LZparser.cpp
+    include/self_indexes/LZ/src/LZ77.cpp
+    include/self_indexes/LZ/src/LZend.cpp
+    include/self_indexes/LZ/src/treelist.cpp
+    include/self_indexes/LZ/src/static_bitsequence.cpp
+    include/self_indexes/LZ/src/static_bitsequence_brw32.cpp
+    include/self_indexes/LZ/src/static_bitsequence_builder_brw32.cpp
+    include/self_indexes/LZ/src/static_permutation.cpp
+    include/self_indexes/LZ/src/static_permutation_mrrr.cpp
+    include/self_indexes/LZ/src/RMQ.cpp
+    include/self_indexes/LZ/src/RMQ_succinct.cpp
+    include/self_indexes/LZ/src/perm.cpp
+    include/self_indexes/LZ/src/deltacodes.cpp
+    include/self_indexes/LZ/src/patricia.cpp
+    include/self_indexes/LZ/src/patricia_node.cpp
+    include/self_indexes/LZ/src/bp_hb.cpp
+    include/self_indexes/LZ/src/dfuds.cpp
+    include/self_indexes/LZ/src/static_doublebitmap.cpp
+    include/self_indexes/LZ/src/static_doublebitmap_s.cpp
+    include/self_indexes/LZ/src/hash.cpp
+    include/self_indexes/LZ/src/utils_index.cpp
+    include/self_indexes/LZ/src/range.cpp
+    include/self_indexes/LZ/src/static_range.cpp
+    include/self_indexes/LZ/src/static_range_none.cpp
+    include/self_indexes/LZ/src/static_range_chazelle.cpp
+    include/self_indexes/LZ/src/static_sequence_wt.cpp
+    include/self_indexes/LZ/src/wt_node.cpp
+    include/self_indexes/LZ/src/perm2.cpp
+    include/self_indexes/LZ/src/static_permutation_mrrr2.cpp
+    include/self_indexes/LZ/src/static_selfindex_lzend.cpp
+    include/self_indexes/LZ/src/directcodes.cpp
+    include/self_indexes/LZ/src/bitrankw32int.cpp
+)
 
 add_executable(gen_mf src/gen_mf.cc)
-add_executable(gen_index src/gen_index.cc include/util/utility.cc)
-add_executable(locate src/locate.cc include/util/utility.cc)
+add_executable(gen_index src/gen_index.cc include/util/utility.cc ${LZ77_Ref})
+add_executable(locate src/locate.cc include/util/utility.cc ${LZ77_Ref})
 
 # 啟用測試
 enable_testing()

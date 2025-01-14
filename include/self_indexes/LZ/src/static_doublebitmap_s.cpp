@@ -36,14 +36,14 @@ const unsigned char dpopc[] = {
     2,2,2,3,2,2,3,4,2,2,2,3,3,3,4,5,3,3,3,4,3,3,4,5,4,4,4,5,5,5,6,7
 };
 
-unsigned int dpopcount (register unsigned int x){
+unsigned int dpopcount (unsigned int x){
     int t=0;
     if(((x&(0x03<<7))>>7)==0x03)t++;
     if(((x&(0x03<<15))>>15)==0x03)t++;
     if(((x&(0x03<<23))>>23)==0x03)t++;
     return dpopc[x&0xFF] + dpopc[(x>>8)&0xFF] + dpopc[(x>>16)&0xFF] + dpopc[x>>24] + t;
 }
-unsigned int dpopcount8 (register unsigned int x){
+unsigned int dpopcount8 (unsigned int x){
     return dpopc[x & 0xff];
 }
 static_doublebitmap_s::static_doublebitmap_s(unsigned int* data, unsigned int n) {

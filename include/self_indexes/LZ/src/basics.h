@@ -79,7 +79,7 @@ inline unsigned int uint_len(unsigned int e, unsigned int n) {
  */
 inline unsigned int get_field(unsigned int *A, unsigned int len, unsigned int index) {
   if(len==0) return 0;
-  register unsigned int i=index*len/W, j=index*len-W*i, result;
+  unsigned int i=index*len/W, j=index*len-W*i, result;
   if (j+len <= W)
     result = (A[i] << (W-j-len)) >> (W-len);
   else {

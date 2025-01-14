@@ -68,7 +68,7 @@ FTRep* createFT(unsigned int *list,unsigned int listLength){
 	unsigned int levelSizeAux[7]={0,0,0,0,0,0,0};
 	unsigned int cont[7]={0,0,0,0,0,0,0};	
 	rep->listLength = listLength;
-	register unsigned int i;
+	unsigned int i;
 	int j, k;
 	unsigned int value, newvalue;
 	unsigned int bits_BS_len = 0;
@@ -170,7 +170,7 @@ FTRep* createFT(unsigned int *list,unsigned int listLength){
 unsigned int accessFT(FTRep * listRep,unsigned int param){
  unsigned int mult=0;
  //register unsigned int i;
- register unsigned int j;
+ unsigned int j;
  //unsigned int * rankLevel = listRep->rankLevels;
  //unsigned char * list;
  //unsigned int n ,

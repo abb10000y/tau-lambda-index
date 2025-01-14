@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
 
     // create a tau-lambda-index instance and operate it
     tau_lambda_index* idx = new tau_lambda_index();
-    idx->load(inputIndex);
+    idx->load(inputIndex, inputIndexPath);
     idx->locate(inputPatternFile, outputResultFile);
 
     inputIndex.close();

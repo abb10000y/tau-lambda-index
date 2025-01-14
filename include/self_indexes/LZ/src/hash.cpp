@@ -44,7 +44,7 @@ inline static unsigned int bitget_go(unsigned int *e, unsigned int p, unsigned i
 	return answ;
 }
 // writes e[p..p+len-1] = s, len <= W
-inline static void bitput (register unsigned int *e, register unsigned int p, register unsigned int len, register unsigned int s){ 
+inline static void bitput (unsigned int *e, unsigned int p, unsigned int len, unsigned int s){ 
 	e += p >> bitsW; 
 	p &= (1<<bitsW)-1;
 	if (len == W){ 
@@ -158,5 +158,6 @@ unsigned int sizeofHash(hash H){
 	else
 		return 0;
 }
-}
+
+}
 }

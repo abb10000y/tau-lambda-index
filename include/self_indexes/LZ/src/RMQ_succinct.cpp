@@ -68,7 +68,7 @@ const char RMQ_succinct::LogTable256[256] =
 
 DTidx RMQ_succinct::log2fast(DTidx v) {
 	DTidx c = 0;          // c will be lg(v)
-	register DTidx t, tt; // temporaries
+	DTidx t, tt; // temporaries
 
 	if (tt = v >> 16)
 		c = (t = v >> 24) ? 24 + LogTable256[t] : 16 + LogTable256[tt & 0xFF];
@@ -77,7 +77,15 @@ DTidx RMQ_succinct::log2fast(DTidx v) {
 	return c;
 }
 
-const DTsucc RMQ_succinct::HighestBitsSet[8] = {~0, ~1, ~3, ~7, ~15, ~31, ~63, ~127};
+const DTsucc RMQ_succinct::HighestBitsSet[8] = {
+	static_cast<DTsucc>(~0u),
+	static_cast<DTsucc>(~1u),
+	static_cast<DTsucc>(~3u),
+	static_cast<DTsucc>(~7u),
+	static_cast<DTsucc>(~15u),
+	static_cast<DTsucc>(~31u),
+	static_cast<DTsucc>(~63u),
+	static_cast<DTsucc>(~127u)};
 
 DTsucc RMQ_succinct::clearbits(DTsucc n, DTidx x) {
 	return n & HighestBitsSet[x];

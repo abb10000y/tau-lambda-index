@@ -18,14 +18,17 @@
 #include "util/utility.h"
 #include "self_indexes/r-index/internal/r_index.hpp"
 #include "self_indexes/r-index/internal/utils.hpp"
+#include "self_indexes/LZ/src/static_selfindex.h"
+#include "self_indexes/LZ/src/static_selfindex_lz77.h"
 
 
 class tau_lambda_index {
 public:
     tau_lambda_index(){}
     tau_lambda_index(std::string text_path, std::string mf_path, size_t self_index_type);
+    tau_lambda_index(std::string text_path, std::string mf_path, std::string index_path, size_t self_index_type);
     void serialize(std::ofstream &out);
-    void load(std::ifstream &in);
+    void load(std::ifstream &in, std::string inputIndexPath);
     void load_min_factors(std::ifstream &in);
     void locate(std::ifstream &in, std::ofstream &out);
     bool locate_xbwt(std::string &pattern);
@@ -33,7 +36,11 @@ public:
     double get_masked_ratio() { return masked_ratio; }
     void log(std::ofstream& out) {
         out << "tau_l, tau_u, lambda: " << tau_l << ", " << tau_u << ", " << lambda << "\n";
-        out << "bwt_runs: " << r_index->number_of_runs() << "\n";
+        if (self_index_type == 1) {
+            out << "bwt_runs: " << r_index->number_of_runs() << "\n";
+        } else if (self_index_type == 2) {
+            out << "number_of_phrases: " << "PLEASE CHECK THE CONSTRUCTION LOG" << "\n";
+        }
         out << "masked_ratio: " << masked_ratio << "\n" ;
     }
 
@@ -48,6 +55,7 @@ private:
 
     // self_indexes
     ri::r_index<> *r_index {new ri::r_index<>()};
+    lz77index::static_selfindex* lz77;
 
     void build_XBWT(const std::string &text);
     void gen_masked_text(const std::string &text, std::string &masked_text);
@@ -125,7 +133,7 @@ void tau_lambda_index::load_min_factors(std::ifstream &in) {
     }
 }
 
-// Constructor
+// Constructor for r-index
 tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, size_t self_index_type): self_index_type(self_index_type) {
     std::ifstream text_in(text_path);
     if (!text_in.is_open()) {
@@ -167,8 +175,55 @@ tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, s
 
         input = buffer.str();
         r_index = new ri::r_index<>(input, true);
-    } else if (self_index_type == 2) {
+    }
 
+    if (std::remove(maskedTextPath.c_str()) != 0) {
+        std::cerr << "Not able to delete the masked text tmp file" << std::endl;
+        return;
+    }
+}
+
+// Constructor for LZ77
+tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, std::string index_path, size_t self_index_type): self_index_type(self_index_type) {
+    std::ifstream text_in(text_path);
+    if (!text_in.is_open()) {
+        std::cerr << "Error: Could not open input text file " << text_path << std::endl;
+        return;
+    }
+    std::stringstream buffer;
+    buffer << text_in.rdbuf();
+    std::string text = buffer.str();
+    text_in.close();
+
+    std::ifstream mf_in(mf_path);
+    if (!mf_in.is_open()) {
+        std::cerr << "Error: Could not open input minimal_factors file " << mf_path << std::endl;
+        return;
+    }
+    load_min_factors(mf_in);
+    mf_in.close();
+
+    build_XBWT(text);
+    std::string maskedTextPath = "tmpMaskedText";
+    std::string maskedText;
+    std::ofstream tmpMaskedTextfile(maskedTextPath);
+    if (!tmpMaskedTextfile.is_open()) {
+        std::cerr << "Error: Could not open output tmpMaskedText file " << maskedTextPath << std::endl;
+        return;
+    }
+
+    gen_masked_text(text, maskedText);
+    tmpMaskedTextfile << maskedText;
+    tmpMaskedTextfile.close();
+
+    if (self_index_type == 2) {
+        unsigned char br=0;
+        unsigned char bs=0;
+        unsigned char ss=0;
+        char *in = new char[maskedTextPath.size() + 1], *out = new char[index_path.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
+        std::strcpy(in, maskedTextPath.c_str());
+        std::strcpy(out, index_path.c_str());
+        lz77 = lz77index::static_selfindex_lz77::build(in, out, br, bs, ss);
     }
 
     if (std::remove(maskedTextPath.c_str()) != 0) {
@@ -190,7 +245,7 @@ void tau_lambda_index::serialize(std::ofstream &out) {
     }
 }
 
-void tau_lambda_index::load(std::ifstream &in) {
+void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
     sdsl::read_member(self_index_type, in);
     sdsl::read_member(tau_l, in);
     sdsl::read_member(tau_u, in);
@@ -200,6 +255,11 @@ void tau_lambda_index::load(std::ifstream &in) {
     xbwt->Load(in);
     if (self_index_type == 1) {
         r_index->load(in);
+    } else if (self_index_type == 2) {
+        std::string lz77Path = inputIndexPath + "_lz77";
+        char *in = new char[lz77Path.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
+        std::strcpy(in, lz77Path.c_str());
+        lz77 = lz77index::static_selfindex::load(in);
     }
 }
 
@@ -214,6 +274,13 @@ std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
     if (pattern.length() <= lambda && xbwt->match_if_exist(pattern_int)) {
         if (self_index_type == 1) {
             result = r_index->locate_all_tau(pattern, tau_l);
+        } else if (self_index_type == 2) {
+            unsigned char *p = new unsigned char[pattern.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
+            std::memcpy(p, pattern.c_str(), pattern.size() + 1);
+            unsigned int nooc;
+            std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc);
+            result.resize(tmp->size());
+            for (size_t i = 0; i < tmp->size(); i++) { result[i] = static_cast<uint64_t>((*tmp)[i]); }
         }
     }
 
