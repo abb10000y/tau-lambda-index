@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <iostream>
 #include <cstdlib>
-#include <mem_monitor/mem_monitor.hpp>
+#include "../mem_monitor/mem_monitor.hpp"
 #include "lpg_build.hpp"
 #include "grammar_tree.hpp"
 #include "grid.hpp"

@@ -6,7 +6,7 @@
 #define LMS_COMPRESSOR_MEMORY_HANDLER_HPP
 
 #endif //LMS_COMPRESSOR_MEMORY_HANDLER_HPP
-
+namespace LMS_allocator {
 class allocator{
 public:
     template<class value_t>
@@ -37,3 +37,4 @@ public:
         }
     }
 };
+}

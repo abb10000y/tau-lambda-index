@@ -19,8 +19,8 @@
      parentheses support structure proposed by Kunihiko Sadakane.
     \author Simon Gog
 */
-#ifndef INCLUDED_SDSL_BP_SUPPORT_SADA
-#define INCLUDED_SDSL_BP_SUPPORT_SADA
+#ifndef LMS_INCLUDED_SDSL_BP_SUPPORT_SADA
+#define LMS_INCLUDED_SDSL_BP_SUPPORT_SADA
 
 #include <sdsl/int_vector.hpp>
 #include <sdsl/rank_support.hpp>
@@ -37,7 +37,7 @@
 #endif
 #include <iostream>
 
-namespace sdsl
+namespace LMS_sdsl
 {
 
 //! A class that provides support for bit_vectors that represent a BP sequence.

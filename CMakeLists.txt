@@ -46,10 +46,14 @@ set(LZ77_Ref
     include/self_indexes/LZ/src/directcodes.cpp
     include/self_indexes/LZ/src/bitrankw32int.cpp
 )
+set(LMS_Ref
+    include/self_indexes/LMS-based-self-index-LPG_grid/lib/lpg/lpg_build.cpp
+    include/self_indexes/LMS-based-self-index-LPG_grid/third-party/xxHash-dev/xxhash.c
+)
 
 add_executable(gen_mf src/gen_mf.cc)
-add_executable(gen_index src/gen_index.cc include/util/utility.cc ${LZ77_Ref})
-add_executable(locate src/locate.cc include/util/utility.cc ${LZ77_Ref})
+add_executable(gen_index src/gen_index.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref})
+add_executable(locate src/locate.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref})
 
 # 啟用測試
 enable_testing()
@@ -68,6 +72,7 @@ find_package(GTest REQUIRED)
 #find_package(GTest REQUIRED PATHS "/opt/homebrew/opt/googletest")
 include_directories(${GTEST_INCLUDE_DIR})
 include_directories("/usr/local/include")
+include_directories("include/self_indexes/LMS-based-self-index-LPG_grid/include/lpg/sdsl-files")
 
 #include(include/self_indexes/r-index/CMakeLists.txt)
 

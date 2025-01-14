@@ -9,9 +9,9 @@
 #include <vector>
 
 #include <sdsl/bit_vectors.hpp>
-#include "cdt/hash_table.hpp"
-#include "cdt/int_array.h"
-#include "cdt/si_int_array.h"
+#include "../cdt/hash_table.hpp"
+#include "../cdt/int_array.h"
+#include "../cdt/si_int_array.h"
 #include "lpg_build.hpp"
 
 typedef sdsl::bit_vector bv_t;

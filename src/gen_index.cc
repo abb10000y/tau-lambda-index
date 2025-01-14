@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
     tau_lambda_index* idx;
     std::chrono::steady_clock::time_point t1, t2;
     t1 = std::chrono::steady_clock::now();
-    if (selfIndexType == 1) {
+    if (selfIndexType == 1 || selfIndexType == 3) {
         idx = new tau_lambda_index(inputTextPath, inputMfPath, selfIndexType);
     } else if (selfIndexType == 2) {
         std::string lz77OutPath= outputIndexPath + "_lz77";

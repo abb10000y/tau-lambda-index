@@ -31,7 +31,7 @@ struct int_array{
     int_array(size_t cap_, uint8_t width_) : m_size(0), m_width(width_) {
         assert(m_width <= stream_t::word_bits);
         bits.stream_size = INT_CEIL(cap_ * width_, stream_t::word_bits);
-        bits.stream = allocator::allocate<word_t>(bits.stream_size, true, 0);
+        bits.stream = LMS_allocator::allocator::allocate<word_t>(bits.stream_size, true, 0);
     }
 
     //initialize from a allocated memory
@@ -52,7 +52,7 @@ struct int_array{
         m_size = list.size();
 
         bits.stream_size = n_words();
-        bits.stream = allocator::allocate<word_t>(bits.stream_size, false, 0);
+        bits.stream = LMS_allocator::allocator::allocate<word_t>(bits.stream_size, false, 0);
         size_t i=0;
         for(auto const& sym : list){
             write(i++,sym);
@@ -61,7 +61,7 @@ struct int_array{
     }
 
     ~int_array() {
-        allocator::deallocate<word_t>(bits.stream);
+        LMS_allocator::allocator::deallocate<word_t>(bits.stream);
     }
 
     //move constructor
@@ -82,7 +82,7 @@ struct int_array{
 
         bits.stream_size = std::exchange(other.bits.stream_size, 0);
         if(bits.stream!= nullptr){
-            allocator::deallocate(bits.stream);
+            LMS_allocator::allocator::deallocate(bits.stream);
         }
         bits.stream = std::exchange(other.bits.stream, nullptr);
     }
@@ -93,10 +93,10 @@ struct int_array{
         bits.stream_size = n_words();
 
         if(bits.stream!= nullptr){
-            allocator::deallocate(bits.stream);
+            LMS_allocator::allocator::deallocate(bits.stream);
         }
 
-        bits.stream = allocator::allocate<word_t>(bits.stream_size, false, 0);
+        bits.stream = LMS_allocator::allocator::allocate<word_t>(bits.stream_size, false, 0);
         memcpy(bits.stream, other.stream, bits.stream * sizeof(word_t));
     }
 
@@ -183,7 +183,7 @@ struct int_array{
         }
 
         if(new_buffer_size>bits.stream_size){
-            bits.stream = allocator::reallocate<word_t>(bits.stream, bits.stream_size, new_buffer_size, false, 0);
+            bits.stream = LMS_allocator::allocator::reallocate<word_t>(bits.stream, bits.stream_size, new_buffer_size, false, 0);
             bits.stream_size = new_buffer_size;
         }
     }

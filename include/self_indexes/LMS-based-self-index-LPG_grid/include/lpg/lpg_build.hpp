@@ -8,9 +8,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "cdt/file_streams.hpp"
-#include "cdt/int_array.h"
-#include "cdt/hash_table.hpp"
+#include "../cdt/file_streams.hpp"
+#include "../cdt/int_array.h"
+#include "../cdt/hash_table.hpp"
 
 #include <sdsl/int_vector.hpp>
 #include <sdsl/rank_support_v.hpp>

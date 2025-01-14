@@ -2,11 +2,11 @@
 // Created by Diego Diaz on 4/7/20.
 //
 
-#include "lpg/lpg_build.hpp"
+#include "../../include/lpg/lpg_build.hpp"
 #include <cmath>
 #include <sdsl/select_support_mcl.hpp>
-#include "cdt/parallel_string_sort.hpp"
-#include "lpg/repair_algo.hpp"
+#include "../../include/cdt/parallel_string_sort.hpp"
+#include "../../include/lpg/repair_algo.hpp"
 
 
 //pthread_mutex_t thread_mutex=PTHREAD_MUTEX_INITIALIZER;

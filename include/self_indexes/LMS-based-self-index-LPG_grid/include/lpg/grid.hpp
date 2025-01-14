@@ -7,7 +7,7 @@
 
 
 #include <sdsl/rrr_vector.hpp>
-#include "../sdsl-files/wt_int.hpp"
+#include "../../sdsl-files/wt_int.hpp"
 #include <sdsl/construct.hpp>
 #include "macros.hpp"
 #include "utils.hpp"
@@ -53,7 +53,7 @@ public:
     typedef grid_query                                     query;
     typedef size_t                                     size_type;
     typedef sdsl::rrr_vector<>                             wt_bv;
-    typedef sdsl::wt_int<
+    typedef LMS_sdsl::wt_int<
             wt_bv,
             wt_bv::rank_1_type,
             wt_bv::select_1_type,

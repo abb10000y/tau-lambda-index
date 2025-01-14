@@ -20,8 +20,8 @@
            less memory than the wt_pc class for large alphabets.
     \author Simon Gog, Shanika Kuruppu
 */
-#ifndef INCLUDED_SDSL_INT_WAVELET_TREE
-#define INCLUDED_SDSL_INT_WAVELET_TREE
+#ifndef LMS_INCLUDED_SDSL_INT_WAVELET_TREE
+#define LMS_INCLUDED_SDSL_INT_WAVELET_TREE
 
 #include <sdsl/sdsl_concepts.hpp>
 #include <sdsl/int_vector.hpp>
@@ -38,7 +38,7 @@
 #include <utility>
 
 //! Namespace for the succinct data structure library.
-namespace sdsl
+namespace LMS_sdsl
 {
 
 //! A wavelet tree class for integer sequences.

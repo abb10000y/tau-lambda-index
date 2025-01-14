@@ -7,7 +7,7 @@
 
 
 #include <sdsl/int_vector.hpp>
-#include "../sdsl-files/bp_support_sada.hpp"
+#include "../../sdsl-files/bp_support_sada.hpp"
 #include <sdsl/rrr_vector.hpp>
 
 
@@ -16,7 +16,7 @@ class dfuds_tree {
 public:
     typedef size_t                                               size_type;
     typedef sdsl::bit_vector                                            bv;
-    typedef sdsl::bp_support_sada<>                         parenthesis_seq;
+    typedef LMS_sdsl::bp_support_sada<>                         parenthesis_seq;
 
     //protected:
     bv bit_vector;
@@ -343,7 +343,7 @@ public:
 
 protected:
     void compute_aux_st(){
-        bps = sdsl::bp_support_sada<>(&bit_vector);
+        bps = LMS_sdsl::bp_support_sada<>(&bit_vector);
         rank_00 = sdsl::rank_support_v<00, 2>(&bit_vector);
         select_00 = sdsl::select_support_mcl<00, 2>(&bit_vector);
         select_0 = bv::select_0_type(&bit_vector);

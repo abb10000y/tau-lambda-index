@@ -20,6 +20,8 @@
 #include "self_indexes/r-index/internal/utils.hpp"
 #include "self_indexes/LZ/src/static_selfindex.h"
 #include "self_indexes/LZ/src/static_selfindex_lz77.h"
+#include "self_indexes/LMS-based-self-index-LPG_grid/include/lpg/lpg_index.hpp"
+#include "self_indexes/LMS-based-self-index-LPG_grid/third-party/CLI11.hpp"
 
 
 class tau_lambda_index {
@@ -56,6 +58,7 @@ private:
     // self_indexes
     ri::r_index<> *r_index {new ri::r_index<>()};
     lz77index::static_selfindex* lz77;
+    lpg_index* lms;
 
     void build_XBWT(const std::string &text);
     void gen_masked_text(const std::string &text, std::string &masked_text);
@@ -133,7 +136,7 @@ void tau_lambda_index::load_min_factors(std::ifstream &in) {
     }
 }
 
-// Constructor for r-index
+// Constructor for r-index and LMS
 tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, size_t self_index_type): self_index_type(self_index_type) {
     std::ifstream text_in(text_path);
     if (!text_in.is_open()) {
@@ -175,6 +178,9 @@ tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, s
 
         input = buffer.str();
         r_index = new ri::r_index<>(input, true);
+    } else if (self_index_type == 3) {
+        std::string LMSTemp = "LMS_temp";
+        lms = new lpg_index(text_path, LMSTemp, 1, 0.5);
     }
 
     if (std::remove(maskedTextPath.c_str()) != 0) {
@@ -242,6 +248,8 @@ void tau_lambda_index::serialize(std::ofstream &out) {
     xbwt->Serialize(out);
     if (self_index_type == 1) {
         r_index->serialize(out);
+    } else if (self_index_type == 3) {
+        lms->serialize(out, NULL, "");
     }
 }
 
