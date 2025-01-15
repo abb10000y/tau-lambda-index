@@ -58,7 +58,7 @@ private:
     // self_indexes
     ri::r_index<> *r_index {new ri::r_index<>()};
     lz77index::static_selfindex* lz77;
-    lpg_index* lms;
+    lpg_index lms;
 
     void build_XBWT(const std::string &text);
     void gen_masked_text(const std::string &text, std::string &masked_text);
@@ -179,8 +179,8 @@ tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, s
         input = buffer.str();
         r_index = new ri::r_index<>(input, true);
     } else if (self_index_type == 3) {
-        std::string LMSTemp = "LMS_temp";
-        lms = new lpg_index(text_path, LMSTemp, 1, 0.5);
+        std::string LMSTemp = "/tmp"; // same as the default value, don't change
+        lms = lpg_index(text_path, LMSTemp, 1, 0.5);
     }
 
     if (std::remove(maskedTextPath.c_str()) != 0) {
@@ -249,7 +249,7 @@ void tau_lambda_index::serialize(std::ofstream &out) {
     if (self_index_type == 1) {
         r_index->serialize(out);
     } else if (self_index_type == 3) {
-        lms->serialize(out, NULL, "");
+        lms.serialize(out, NULL, "");
     }
 }
 
@@ -316,7 +316,7 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
         std::vector<uint64_t> results = _locate(pattern);
         t2 = std::chrono::steady_clock::now();
         std::sort(results.begin(), results.end());
-        out << "pattern [" << (i+1) << "] -- " << results.size() <<  "occurrences\n";
+        out << "pattern [" << (i+1) << "] -- " << results.size() <<  " occurrences\n";
         for (auto r : results) { out << r << "\t"; }
         out << "\n";
         out << "time consuming (us): " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << "\n";
