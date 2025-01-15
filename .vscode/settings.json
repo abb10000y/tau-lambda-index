@@ -66,6 +66,7 @@
         "hash_map": "cpp",
         "hash_set": "cpp",
         "__config": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "condition_variable": "cpp"
     }
 }

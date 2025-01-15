@@ -29,6 +29,56 @@ private:
     void gen_failure_links(const std::string &text);
     void gen_mf(const std::string &text, size_t tau_l, size_t tau_u);
     void insert(const std::string &text, size_t start, size_t end, size_t lambda); // [start, end)
+    void delimiter_to_char(const std::string &delimiter) {
+        for (size_t i = 0, e = delimiter.size(); i < e; i++) {
+            char c = delimiter[i];
+            if (delimiter[i] == '\\' && i+1 < e) {
+                char c__ = delimiter[i+1];
+                if (c__ == '0') { c = 0; }
+                else if (c__ == '1') { c = 1; }
+                else if (c__ == '2') { c = 2; }
+                else if (c__ == '3') { c = 3; }
+                else if (c__ == '4') { c = 4; }
+                else if (c__ == '5') { c = 5; }
+                else if (c__ == '6') { c = 6; }
+                else if (c__ == '7') { c = 7; }
+                else if (c__ == '8') { c = 8; }
+                else if (c__ == 't') { c = 9; }
+                else if (c__ == 'n') { c = 10; }
+                else if (c__ == 'v') { c = 11; }
+                else if (c__ == 'f') { c = 12; }
+                else if (c__ == 'r') { c = 13; }
+                i = i + 1;
+                if (c == '\\') { i--; }
+            }
+            delimiters.insert(c);
+        }
+    }
+    std::string delimiters_to_string() {
+        std::string delimiter;
+        for (char c : delimiters) {
+            if (c < 14) {
+                delimiter.append("\\");
+                if (c == 0) { delimiter.push_back('0'); }
+                else if (c == 1) { delimiter.push_back('1'); }
+                else if (c == 2) { delimiter.push_back('2'); }
+                else if (c == 3) { delimiter.push_back('3'); }
+                else if (c == 4) { delimiter.push_back('4'); }
+                else if (c == 5) { delimiter.push_back('5'); }
+                else if (c == 6) { delimiter.push_back('6'); }
+                else if (c == 7) { delimiter.push_back('7'); }
+                else if (c == 8) { delimiter.push_back('8'); }
+                else if (c == 9) { delimiter.push_back('t'); }
+                else if (c == 10) { delimiter.push_back('n'); }
+                else if (c == 11) { delimiter.push_back('v'); }
+                else if (c == 12) { delimiter.push_back('f'); }
+                else if (c == 13) { delimiter.push_back('r'); }
+            } else {
+                delimiter.push_back(c);
+            }
+        }
+        return delimiter;
+    }
 
 public:
     k_factor_tree(){}
@@ -70,10 +120,11 @@ public:
     }
     */
 };
+
 void k_factor_tree::Serialize_min_factors (std::ostream &out) {
     out << tau_l << "\t" << tau_u << "\t" << lambda << "\t";
-    for (auto c : delimiters) { out << c; }
-    out << "\t" << min_factors.size() << "\n";
+    out << delimiters_to_string() << "\t";
+    out << min_factors.size() << "\n";
     for (auto [a, b] : min_factors) { out << a << "\t" << b << "\n"; }
 }
 
@@ -197,7 +248,7 @@ k_factor_tree::k_factor_tree(const std::string &text, size_t lambda, size_t tau_
     //std::chrono::steady_clock::time_point t1, t2, t3, t4, t5;
     //t1 = std::chrono::steady_clock::now();
 
-    for (char c : delimiter) { delimiters.insert(c); }
+    delimiter_to_char(delimiter);
 
     if (lambda == 0) { lambda = text.size() + 1; }
     else if (lambda == 1) { throw std::invalid_argument("lambda can't be 1"); } // for the gen_masked_notation(), but not sure if necessary
