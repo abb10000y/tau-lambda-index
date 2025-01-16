@@ -3,7 +3,6 @@
 
 #include "Ac_automata.h"
 #include "Minimun_factors.h"
-#include "Location_tree/Location_tree.h"
 #include "Blind_tree/Blind_tree.h"
 #include <iostream>
 #include <fstream>
@@ -15,10 +14,6 @@
 #include <exception>
 #include <filesystem>
 #include <unordered_set>
-#include <chrono>
-#include "../components/Load_mf_from_disk.h"
-#include <sys/resource.h>
-#include <sys/time.h>
 
 class Index {
 public:
@@ -63,8 +58,6 @@ private:
     bool activate_lambda; // whether activate lambda
     bool use_location_tree; // whether use location tree
     Ac_automata ac_automata; // the ac_automata
-    // Location_tree forward_location_tree; // the forward location tree
-    // Location_tree reverse_location_tree; // the reverse location tree
     Blind_tree forward_location_tree; // the forward location tree
     Blind_tree reverse_location_tree; // the reverse location tree
 };
@@ -82,7 +75,6 @@ Index::Index(const std::string& text, int tau, int lambda, bool activate_lambda,
     if (activate_lambda && lambda < 0) {
         std::cout << "Error: lambda is not set" << std::endl;
         throw std::runtime_error("lambda is not set"); // TODO more specific exception?
-    
     }
 
     Minimun_factors min_factors(text, tau, lambda, activate_lambda);
@@ -131,7 +123,7 @@ Index::Index(const std::string& text, int tau, int lambda, bool activate_lambda,
     
     }   
 
-    Load_mf_from_disk mfSet(mfPath);
+    //Load_mf_from_disk mfSet(mfPath);
     ac_automata = Ac_automata(text, mfSet.get_min_factors());
     forward_location_tree.insert_factors(mfSet.get_min_factors());
     reverse_location_tree.insert_factors(mfSet.get_min_factors());
@@ -170,48 +162,12 @@ std::vector<size_t> Index::direct_search(const std::string& pattern) {
     return result;
 }
 
-// // TODO str -> string_view for better performance
-// // the whole alg need performance improvement
-// std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
-//     std::set<size_t> result; // TODO set -> unordered_set for better performance
-//     std::vector<std::tuple<size_t, size_t, size_t>> ac_result = ac_automata.match(pattern);
-//     std::string_view pattern_view(pattern); // convert pattern to string_view for better performance
-
-//     for (auto [dummy, start_pattern, length] : ac_result) {
-//         auto factor_end_in_pattern = start_pattern + length - 1; // end of factor in pattern
-//         std::string pattern_suffix = pattern.substr(start_pattern, pattern.size() - start_pattern); // begin of factor to the end of pattern
-//         std::string pattern_prefix = pattern.substr(0, factor_end_in_pattern + 1); // begin of pattern to end of factor TODO +1 or not?
-
-//         std::vector<size_t> forward_factors = forward_location_tree.match(pattern_suffix);
-//         std::vector<size_t> reverse_factors = reverse_location_tree.match(pattern_prefix);
-//         std::set<size_t> forward_result(forward_factors.begin(), forward_factors.end()); // TODO set -> unordered_set for better performance
-
-//         for (auto start_text : reverse_factors) {
-//             if (forward_result.find(start_text) != forward_result.end()) {
-//                 size_t begin_pattern_in_text = start_text - start_pattern;
-//                 result.emplace(begin_pattern_in_text);
-//             }
-//         }
-//     }
-//     return std::vector<size_t>(result.begin(), result.end());
-// }
-
 // Blind tree version
-std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
-    // std::vector<std::tuple<size_t, size_t, size_t>> ac_result = ac_automata.match(pattern);
-
-    //std::chrono::steady_clock::time_point t1, t2, t3, t4, t5;
-    //std::ofstream outputFile("./output_partitioin/summary_NotExist_with_mf.txt", std::ios::app);
-    // outputFile << "AC matching (ns)" << "\t" << "gen LT (ns)" << "\t" << "loop reverse_factors (ns)" << "\t" << "loop candidates_result (ns)" << "\n";
-
-    //t1 = std::chrono::steady_clock::now();
-    
+std::vector<size_t> Index::location_tree_search(const std::string& pattern) {   
     auto [start_pattern, length] = ac_automata.match_pos_in_pattern(pattern);
     if (start_pattern == -1) {
         return std::vector<size_t>();
     }
-
-    //t2 = std::chrono::steady_clock::now();
 
     std::string_view pattern_view(pattern); // convert pattern to string_view for better performance
     std::unordered_set<size_t> candidate_result;
@@ -224,16 +180,12 @@ std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
     std::vector<size_t> reverse_factors = reverse_location_tree.match(pattern_prefix);
     std::set<size_t> forward_result(forward_factors.begin(), forward_factors.end()); // TODO set -> unordered_set for better performance
 
-    //t3 = std::chrono::steady_clock::now();
-
     for (auto start_text : reverse_factors) {
         if (forward_result.find(start_text) != forward_result.end()) {
             size_t begin_pattern_in_text = start_text - start_pattern;
             candidate_result.emplace(begin_pattern_in_text);
         }
     }
-
-    //t4 = std::chrono::steady_clock::now();
 
     // for each candidate result, check if it is a real result
     std::vector<size_t> result;
@@ -243,14 +195,6 @@ std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
             result.emplace_back(begin_pattern_in_text);
         }
     }
-
-    //t5 = std::chrono::steady_clock::now();
-
-    //outputFile << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << "\t";
-    //outputFile << std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() << "\t";
-    //outputFile << std::chrono::duration_cast<std::chrono::nanoseconds>(t4 - t3).count() << "\t";
-    //outputFile << std::chrono::duration_cast<std::chrono::nanoseconds>(t5 - t4).count() << "\n";
-    //outputFile.close();
 
     return result;
 }
