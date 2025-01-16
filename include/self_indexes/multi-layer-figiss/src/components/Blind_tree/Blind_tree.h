@@ -4,9 +4,13 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <stack>
 #include <tuple>
+#include <utility>
 #include <memory>
 #include <map>
+#include <fstream>
+#include <iostream>
 #include <functional> // TODO remove
 #include "../Location_tree/Location_tree.h"
 #include "Blind_tree_node.h"
@@ -18,7 +22,7 @@ public:
 
     // construct a location tree from the text
     // reverse: whether to construct a reverse location tree
-    Blind_tree(const std::string& text, bool reverse = false);
+    Blind_tree(std::string& text, bool reverse = false);
     ~Blind_tree();
 
     void insert_factors(const std::vector<std::pair<size_t, size_t>>& min_factors);
@@ -29,12 +33,13 @@ public:
     void print(Node* node = nullptr, bool first_call = true, bool print_out_path = true); 
     size_t get_num_nodes(); // TODO remove
 
-    void serialize(std::string& filename);
-    void load(std::string& filename);
+    void serialize(std::ofstream& out);
+    void load(std::ifstream& in);
+    void set_text(std::string &T) { text = T; }
 
 private:
     std::unique_ptr<Node> root;
-    const std::string& text;
+    std::string& text;
     bool reverse;
     bool debug = false; // TODO remove
 
@@ -46,7 +51,7 @@ private:
     size_t pick_one_location(Node* node);
 };
 
-Blind_tree::Blind_tree(const std::string& text, bool reverse) : text(text), reverse(reverse) {}
+Blind_tree::Blind_tree(std::string& text, bool reverse) : text(text), reverse(reverse) {}
 
 Blind_tree::~Blind_tree() {}
 
@@ -160,9 +165,10 @@ size_t Blind_tree::get_num_nodes() {
     return result;
 }
 
-void Blind_tree::serialize(std::string& filename) {
-    std::ofstream out(filename, std::ios::binary);
+void Blind_tree::serialize(std::ofstream& out) {
     using index_type = uint32_t;
+
+    out.write(reinterpret_cast<char*>(&reverse), sizeof(reverse));
 
     std::unordered_map<Node*, index_type> node_id;
     // dfs to assign id to each node
@@ -217,9 +223,10 @@ void Blind_tree::serialize(std::string& filename) {
     }
 }
 
-void Blind_tree::load(std::string& filename) {
-    std::ifstream in(filename, std::ios::binary);
+void Blind_tree::load(std::ifstream& in) {
     using index_type = uint32_t;
+
+    in.read(reinterpret_cast<char*>(&reverse), sizeof(reverse));
 
     // id_node, id_link mapping
     std::unordered_map<index_type, Node*> id_node;

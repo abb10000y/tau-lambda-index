@@ -8,6 +8,8 @@
 #include <map>
 #include <queue>
 #include <tuple>
+#include <stack>
+#include <fstream>
 #include <memory>
 
 class Ac_automata {
@@ -35,8 +37,8 @@ public:
         return ac_size;
     }
 
-    void serialize(std::string& filename);
-    void load(std::string& filename);
+    void serialize(std::ofstream &out);
+    void load(std::ifstream &in);
 
 private:
     // define the node of the trie
@@ -166,8 +168,7 @@ std::pair<size_t, size_t> Ac_automata::match_pos_in_pattern(const std::string& p
 }
 
 // output in binary format
-void Ac_automata::serialize(std::string& filename) {
-    std::ofstream out(filename, std::ios::binary);
+void Ac_automata::serialize(std::ofstream &out) {
     using index_type = uint32_t;
 
     std::unordered_map<Node*, index_type> node_id;
@@ -235,9 +236,8 @@ void Ac_automata::serialize(std::string& filename) {
 }
 
 // read in binary format
-void Ac_automata::load(std::string& filename) {
+void Ac_automata::load(std::ifstream &in) {
     using index_type = uint32_t;
-    std::ifstream in(filename, std::ios::binary);
 
     // save id_node mapping, id_fail_link mapping, and id_children mapping, for first pass
     std::unordered_map<index_type, Node*> id_node;

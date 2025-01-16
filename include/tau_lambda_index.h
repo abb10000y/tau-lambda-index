@@ -22,7 +22,7 @@
 #include "self_indexes/LZ/src/static_selfindex_lz77.h"
 #include "self_indexes/LMS-based-self-index-LPG_grid/include/lpg/lpg_index.hpp"
 #include "self_indexes/LMS-based-self-index-LPG_grid/third-party/CLI11.hpp"
-
+#include "self_indexes/multi-layer-figiss/src/components/Index.h"
 
 class tau_lambda_index {
 public:
@@ -50,6 +50,7 @@ public:
 
 private:
     size_t self_index_type, tau_l, tau_u, lambda;
+    std::string inputTextPath, text;
     double masked_ratio;
     XBWT* xbwt {new XBWT()}; // TODO: memory leak
     SymbolTable symbol_table_;
@@ -61,6 +62,7 @@ private:
     ri::r_index<> *r_index {new ri::r_index<>()};
     lz77index::static_selfindex* lz77;
     lpg_index lms;
+    Index* old_tau_lambda;
 
     void build_XBWT(const std::string &text);
     void gen_masked_text(const std::string &text, std::string &masked_text);
@@ -138,8 +140,10 @@ void tau_lambda_index::load_min_factors(std::ifstream &in) {
     }
 }
 
-// Constructor for r-index and LMS
-tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, size_t self_index_type): self_index_type(self_index_type) {
+// Constructor for r-index, LMS and old-tau-lambda-index(DCC version)
+tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, size_t self_index_type):
+self_index_type(self_index_type), inputTextPath(text_path)
+{
     std::ifstream text_in(text_path);
     if (!text_in.is_open()) {
         std::cerr << "Error: Could not open input text file " << text_path << std::endl;
@@ -147,7 +151,7 @@ tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, s
     }
     std::stringstream buffer;
     buffer << text_in.rdbuf();
-    std::string text = buffer.str();
+    text = buffer.str();
     text_in.close();
 
     std::ifstream mf_in(mf_path);
@@ -158,41 +162,47 @@ tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, s
     load_min_factors(mf_in);
     mf_in.close();
 
-    build_XBWT(text);
-    std::string maskedTextPath = "tmpMaskedText";
-    std::string maskedText;
-    std::ofstream tmpMaskedTextfile(maskedTextPath);
-    if (!tmpMaskedTextfile.is_open()) {
-        std::cerr << "Error: Could not open output tmpMaskedText file " << maskedTextPath << std::endl;
-        return;
-    }
+    if (self_index_type == 4) {
+        old_tau_lambda = new Index(text, min_factors, tau_l, tau_u, lambda);
+    } else {
+        build_XBWT(text);
+        std::string maskedTextPath = "tmpMaskedText";
+        std::string maskedText;
+        std::ofstream tmpMaskedTextfile(maskedTextPath);
+        if (!tmpMaskedTextfile.is_open()) {
+            std::cerr << "Error: Could not open output tmpMaskedText file " << maskedTextPath << std::endl;
+            return;
+        }
 
-    gen_masked_text(text, maskedText);
-    tmpMaskedTextfile << maskedText;
-    tmpMaskedTextfile.close();
+        gen_masked_text(text, maskedText);
+        tmpMaskedTextfile << maskedText;
+        tmpMaskedTextfile.close();
 
-    // TODO: generate the self-index
-    if (self_index_type == 1) {
-        std::string input;
-        std::ifstream fs(maskedTextPath);
-        std::stringstream buffer;
-        buffer << fs.rdbuf();
+        // TODO: generate the self-index
+        if (self_index_type == 1) {
+            std::string input;
+            std::ifstream fs(maskedTextPath);
+            std::stringstream buffer;
+            buffer << fs.rdbuf();
 
-        input = buffer.str();
-        r_index = new ri::r_index<>(input, true);
-    } else if (self_index_type == 3) {
-        std::string LMSTemp = "/tmp"; // same as the default value, don't change
-        lms = lpg_index(text_path, LMSTemp, 1, 0.5);
-    }
+            input = buffer.str();
+            r_index = new ri::r_index<>(input, true);
+        } else if (self_index_type == 3) {
+            std::string LMSTemp = "/tmp"; // same as the default value, don't change
+            lms = lpg_index(text_path, LMSTemp, 1, 0.5);
+        }
 
-    if (std::remove(maskedTextPath.c_str()) != 0) {
-        std::cerr << "Not able to delete the masked text tmp file" << std::endl;
-        return;
+        if (std::remove(maskedTextPath.c_str()) != 0) {
+            std::cerr << "Not able to delete the masked text tmp file" << std::endl;
+            return;
+        }
     }
 }
 
 // Constructor for LZ77
-tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, std::string index_path, size_t self_index_type): self_index_type(self_index_type) {
+tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, std::string index_path, size_t self_index_type):
+ self_index_type(self_index_type), inputTextPath(text_path)
+ {
     std::ifstream text_in(text_path);
     if (!text_in.is_open()) {
         std::cerr << "Error: Could not open input text file " << text_path << std::endl;
@@ -241,37 +251,64 @@ tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, s
 }
 
 void tau_lambda_index::serialize(std::ofstream &out) {
+    size_t length = inputTextPath.size();
+    out.write(reinterpret_cast<char*>(&length), sizeof(length));
+    out.write(inputTextPath.data(), length);
     sdsl::write_member(self_index_type, out);
     sdsl::write_member(tau_l, out);
     sdsl::write_member(tau_u, out);
     sdsl::write_member(lambda, out);
-    sdsl::write_member(masked_ratio, out);
-    symbol_table_.Serialize(out);
-    xbwt->Serialize(out);
-    if (self_index_type == 1) {
-        r_index->serialize(out);
-    } else if (self_index_type == 3) {
-        lms.serialize(out, NULL, "");
+    if (self_index_type == 4) {
+        old_tau_lambda->serialize(out);
+    } else {
+        sdsl::write_member(masked_ratio, out);
+        symbol_table_.Serialize(out);
+        xbwt->Serialize(out);
+        if (self_index_type == 1) {
+            r_index->serialize(out);
+        } else if (self_index_type == 3) {
+            lms.serialize(out, NULL, "");
+        }
     }
 }
 
 void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
+    size_t length;
+    in.read(reinterpret_cast<char*>(&length), sizeof(length));
+    inputTextPath.resize(length);
+    in.read(&inputTextPath[0], length);
+    
     sdsl::read_member(self_index_type, in);
     sdsl::read_member(tau_l, in);
     sdsl::read_member(tau_u, in);
     sdsl::read_member(lambda, in);
-    sdsl::read_member(masked_ratio, in);
-    symbol_table_.Load(in);
-    xbwt->Load(in);
-    if (self_index_type == 1) {
-        r_index->load(in);
-    } else if (self_index_type == 2) {
-        std::string lz77Path = inputIndexPath + "_lz77";
-        char *in = new char[lz77Path.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
-        std::strcpy(in, lz77Path.c_str());
-        lz77 = lz77index::static_selfindex::load(in);
-    } else if (self_index_type == 3) {
-        lms.load(in);
+    if (self_index_type == 4) {
+        std::ifstream text_in(inputTextPath);
+        if (!text_in.is_open()) {
+            std::cerr << "Error: Could not open input text file " << inputTextPath << std::endl;
+            return;
+        }
+        std::stringstream buffer;
+        buffer << text_in.rdbuf();
+        text = buffer.str();
+        text_in.close();
+
+        old_tau_lambda = new Index(text);
+        old_tau_lambda->load(in);
+    } else {
+        sdsl::read_member(masked_ratio, in);
+        symbol_table_.Load(in);
+        xbwt->Load(in);
+        if (self_index_type == 1) {
+            r_index->load(in);
+        } else if (self_index_type == 2) {
+            std::string lz77Path = inputIndexPath + "_lz77";
+            char *in = new char[lz77Path.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
+            std::strcpy(in, lz77Path.c_str());
+            lz77 = lz77index::static_selfindex::load(in);
+        } else if (self_index_type == 3) {
+            lms.load(in);
+        }
     }
 }
 
@@ -282,27 +319,31 @@ std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
     pattern_int.resize(pattern.size());
     for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[pattern[i] + t_symbol]; }
     // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
-    
-    if (pattern.length() <= lambda && xbwt->match_if_exist(pattern_int)) {
-        if (self_index_type == 1) {
-            result = r_index->locate_all_tau(pattern, tau_l);
-        } else if (self_index_type == 2) {
-            unsigned char *p = new unsigned char[pattern.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
-            std::memcpy(p, pattern.c_str(), pattern.size() + 1);
-            unsigned int nooc;
-            std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc);
-            if (tmp->size() >= tau_l) {
-                result.resize(tmp->size());
-                for (size_t i = 0; i < tmp->size(); i++) { result[i] = static_cast<uint64_t>((*tmp)[i]); }
-            }
-        } else if (self_index_type == 3) {
-            std::set<lpg_index::size_type> tmp;
-            lms.locate(pattern, tmp);
-            //result.resize(tmp.size());
-            if (tmp.size() >= tau_l) {
-                size_t i = 0;
-                //for (auto itr = tmp.begin(); itr != tmp.end(); itr++) { result[i] = *itr; }
-                for (auto r : tmp) { result.push_back(r); }
+    if (self_index_type == 4 && pattern.length() <= lambda) {
+        std::vector<size_t> tmp = old_tau_lambda->location_tree_search(pattern);
+        for (auto r : tmp) { result.push_back(r); }
+    } else {
+        if (pattern.length() <= lambda && xbwt->match_if_exist(pattern_int)) {
+            if (self_index_type == 1) {
+                result = r_index->locate_all_tau(pattern, tau_l);
+            } else if (self_index_type == 2) {
+                unsigned char *p = new unsigned char[pattern.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
+                std::memcpy(p, pattern.c_str(), pattern.size() + 1);
+                unsigned int nooc;
+                std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc);
+                if (tmp->size() >= tau_l) {
+                    result.resize(tmp->size());
+                    for (size_t i = 0; i < tmp->size(); i++) { result[i] = static_cast<uint64_t>((*tmp)[i]); }
+                }
+            } else if (self_index_type == 3) {
+                std::set<lpg_index::size_type> tmp;
+                lms.locate(pattern, tmp);
+                //result.resize(tmp.size());
+                if (tmp.size() >= tau_l) {
+                    size_t i = 0;
+                    //for (auto itr = tmp.begin(); itr != tmp.end(); itr++) { result[i] = *itr; }
+                    for (auto r : tmp) { result.push_back(r); }
+                }
             }
         }
     }

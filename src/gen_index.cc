@@ -37,11 +37,13 @@ int main(int argc, char* argv[]) {
     tau_lambda_index* idx;
     std::chrono::steady_clock::time_point t1, t2;
     t1 = std::chrono::steady_clock::now();
-    if (selfIndexType == 1 || selfIndexType == 3) {
+    if (selfIndexType == 1 || selfIndexType == 3 || selfIndexType == 4) {
         idx = new tau_lambda_index(inputTextPath, inputMfPath, selfIndexType);
     } else if (selfIndexType == 2) {
         std::string lz77OutPath= outputIndexPath + "_lz77";
         idx = new tau_lambda_index(inputTextPath, inputMfPath, lz77OutPath, selfIndexType);
+    } else {
+        throw std::runtime_error("Invalid selfIndexType\n");
     }
     idx->serialize(outputFile);
     t2 = std::chrono::steady_clock::now();
