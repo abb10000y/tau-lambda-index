@@ -289,8 +289,10 @@ std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
             std::memcpy(p, pattern.c_str(), pattern.size() + 1);
             unsigned int nooc;
             std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc);
-            result.resize(tmp->size());
-            for (size_t i = 0; i < tmp->size(); i++) { result[i] = static_cast<uint64_t>((*tmp)[i]); }
+            if (tmp->size() >= tau_l) {
+                result.resize(tmp->size());
+                for (size_t i = 0; i < tmp->size(); i++) { result[i] = static_cast<uint64_t>((*tmp)[i]); }
+            }
         } else if (self_index_type == 3) {
             std::set<lpg_index::size_type> tmp;
             lms.locate(pattern, tmp);
