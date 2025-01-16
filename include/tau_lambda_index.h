@@ -59,7 +59,7 @@ private:
     uint64_t t_symbol = static_cast<uint64_t>(1); // terminate symbols
 
     // self_indexes
-    ri::r_index<> *r_index {new ri::r_index<>()};
+    ri::r_index<> *r_index;
     lz77index::static_selfindex* lz77;
     lpg_index lms;
     Index* old_tau_lambda;
@@ -300,6 +300,7 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
         symbol_table_.Load(in);
         xbwt->Load(in);
         if (self_index_type == 1) {
+            r_index = new ri::r_index<>();
             r_index->load(in);
         } else if (self_index_type == 2) {
             std::string lz77Path = inputIndexPath + "_lz77";
