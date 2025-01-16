@@ -42,6 +42,8 @@ public:
             out << "bwt_runs: " << r_index->number_of_runs() << "\n";
         } else if (self_index_type == 2) {
             out << "number_of_phrases: " << "PLEASE CHECK THE CONSTRUCTION LOG" << "\n";
+        } else if (self_index_type == 3) {
+            out << "grammar_size: " << lms.grammar_tree.get_grammar_size() << "\n";
         }
         out << "masked_ratio: " << masked_ratio << "\n" ;
     }
