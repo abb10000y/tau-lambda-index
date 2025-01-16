@@ -53,7 +53,7 @@ namespace LMS_sdsl
  *
  *   @ingroup wt
  */
-template<class t_bitvector   = bit_vector,
+template<class t_bitvector   = sdsl::bit_vector,
          class t_rank        = typename t_bitvector::rank_1_type,
          class t_select      = typename t_bitvector::select_1_type,
          class t_select_zero = typename t_bitvector::select_0_type>
@@ -61,17 +61,17 @@ class wt_int
 {
     public:
 
-        typedef int_vector<>::size_type              size_type;
-        typedef int_vector<>::value_type             value_type;
+        typedef sdsl::int_vector<>::size_type              size_type;
+        typedef sdsl::int_vector<>::value_type             value_type;
         typedef typename t_bitvector::difference_type difference_type;
-        typedef random_access_const_iterator<wt_int> const_iterator;
+        typedef sdsl::random_access_const_iterator<wt_int> const_iterator;
         typedef const_iterator                       iterator;
         typedef t_bitvector                          bit_vector_type;
         typedef t_rank                               rank_1_type;
         typedef t_select                             select_1_type;
         typedef t_select_zero                        select_0_type;
-        typedef wt_tag                               index_category;
-        typedef int_alphabet_tag                     alphabet_category;
+        typedef sdsl::wt_tag                               index_category;
+        typedef sdsl::int_alphabet_tag                     alphabet_category;
         enum 	{lex_ordered=1};
 
         typedef std::pair<value_type, size_type>     point_type;
@@ -167,17 +167,17 @@ class wt_int
          *        \f$ n\log|\Sigma| + O(1)\f$ bits, where \f$n=size\f$.
          */
         template<uint8_t int_width>
-        wt_int(int_vector_buffer<int_width>& buf, size_type size,
+        wt_int(sdsl::int_vector_buffer<int_width>& buf, size_type size,
                uint32_t max_level=0) : m_size(size) {
             if (0 == m_size)
                 return;
             size_type n = buf.size();  // set n
             if (n < m_size) {
-                throw std::logic_error("n="+util::to_string(n)+" < "+util::to_string(m_size)+"=m_size");
+                throw std::logic_error("n="+sdsl::util::to_string(n)+" < "+sdsl::util::to_string(m_size)+"=m_size");
                 return;
             }
             m_sigma = 0;
-            int_vector<int_width> rac(m_size, 0, buf.width());
+            sdsl::int_vector<int_width> rac(m_size, 0, buf.width());
 
             value_type x = 1;  // variable for the biggest value in rac
             for (size_type i=0; i < m_size; ++i) {
@@ -187,16 +187,16 @@ class wt_int
             }
 
             if (max_level == 0) {
-                m_max_level = bits::hi(x)+1; // max_level bits to represent all values range [0..x]
+                m_max_level = sdsl::bits::hi(x)+1; // max_level bits to represent all values range [0..x]
             } else {
                 m_max_level = max_level;
             }
 
             // buffer for elements in the right node
-            int_vector_buffer<> buf1(tmp_file(buf.filename(), "_wt_constr_buf"),
+            sdsl::int_vector_buffer<> buf1(sdsl::tmp_file(buf.filename(), "_wt_constr_buf"),
                                      std::ios::out, 10*(1<<20), buf.width());
-            std::string tree_out_buf_file_name = tmp_file(buf.filename(), "_m_tree");
-            osfstream tree_out_buf(tree_out_buf_file_name, std::ios::binary|
+            std::string tree_out_buf_file_name = sdsl::tmp_file(buf.filename(), "_m_tree");
+            sdsl::osfstream tree_out_buf(tree_out_buf_file_name, std::ios::binary|
                                    std::ios::trunc|std::ios::out);
 
             size_type bit_size = m_size*m_max_level;
@@ -246,13 +246,13 @@ class wt_int
             buf1.close(true); // remove temporary file
             tree_out_buf.close();
             rac.resize(0);
-            bit_vector tree;
+            sdsl::bit_vector tree;
             load_from_file(tree, tree_out_buf_file_name);
             sdsl::remove(tree_out_buf_file_name);
             m_tree = bit_vector_type(std::move(tree));
-            util::init_support(m_tree_rank, &m_tree);
-            util::init_support(m_tree_select0, &m_tree);
-            util::init_support(m_tree_select1, &m_tree);
+            sdsl::util::init_support(m_tree_rank, &m_tree);
+            sdsl::util::init_support(m_tree_select0, &m_tree);
+            sdsl::util::init_support(m_tree_select1, &m_tree);
         }
 
         //! Copy constructor
@@ -296,9 +296,9 @@ class wt_int
                 std::swap(m_size, wt.m_size);
                 std::swap(m_sigma,  wt.m_sigma);
                 m_tree.swap(wt.m_tree);
-                util::swap_support(m_tree_rank, wt.m_tree_rank, &m_tree, &(wt.m_tree));
-                util::swap_support(m_tree_select1, wt.m_tree_select1, &m_tree, &(wt.m_tree));
-                util::swap_support(m_tree_select0, wt.m_tree_select0, &m_tree, &(wt.m_tree));
+                sdsl::util::swap_support(m_tree_rank, wt.m_tree_rank, &m_tree, &(wt.m_tree));
+                sdsl::util::swap_support(m_tree_select1, wt.m_tree_select1, &m_tree, &(wt.m_tree));
+                sdsl::util::swap_support(m_tree_select0, wt.m_tree_select0, &m_tree, &(wt.m_tree));
                 std::swap(m_max_level,  wt.m_max_level);
             }
         }
@@ -428,8 +428,8 @@ class wt_int
             size_type offset = 0;
             uint64_t mask    = (1ULL) << (m_max_level-1);
             size_type node_size = m_size;
-            int_vector<64> m_path_off(max_level+1);
-            int_vector<64> m_path_rank_off(max_level+1);
+            sdsl::int_vector<64> m_path_off(max_level+1);
+            sdsl::int_vector<64> m_path_rank_off(max_level+1);
             m_path_off[0] = m_path_rank_off[0] = 0;
 
             for (uint32_t k=0; k < m_max_level and node_size; ++k) {
@@ -447,7 +447,7 @@ class wt_int
                 mask >>= 1;
             }
             if (0ULL == node_size or node_size < i) {
-                throw std::logic_error("select("+util::to_string(i)+","+util::to_string(c)+"): c does not occur i times in the WT");
+                throw std::logic_error("select("+sdsl::util::to_string(i)+","+sdsl::util::to_string(c)+"): c does not occur i times in the WT");
                 return m_size;
             }
             mask = 1ULL;
@@ -753,29 +753,29 @@ class wt_int
 
 
         //! Serializes the data structure into the given ostream
-        size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const {
-            structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
+        size_type serialize(std::ostream& out, sdsl::structure_tree_node* v=nullptr, std::string name="")const {
+            sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
             size_type written_bytes = 0;
-            written_bytes += write_member(m_size, out, child, "size");
-            written_bytes += write_member(m_sigma, out, child, "sigma");
+            written_bytes += sdsl::write_member(m_size, out, child, "size");
+            written_bytes += sdsl::write_member(m_sigma, out, child, "sigma");
             written_bytes += m_tree.serialize(out, child, "tree");
             written_bytes += m_tree_rank.serialize(out, child, "tree_rank");
             written_bytes += m_tree_select1.serialize(out, child, "tree_select_1");
             written_bytes += m_tree_select0.serialize(out, child, "tree_select_0");
-            written_bytes += write_member(m_max_level, out, child, "max_level");
-            structure_tree::add_size(child, written_bytes);
+            written_bytes += sdsl::write_member(m_max_level, out, child, "max_level");
+            sdsl::structure_tree::add_size(child, written_bytes);
             return written_bytes;
         }
 
         //! Loads the data structure from the given istream.
         void load(std::istream& in) {
-            read_member(m_size, in);
-            read_member(m_sigma, in);
+            sdsl::read_member(m_size, in);
+            sdsl::read_member(m_sigma, in);
             m_tree.load(in);
             m_tree_rank.load(in, &m_tree);
             m_tree_select1.load(in, &m_tree);
             m_tree_select0.load(in, &m_tree);
-            read_member(m_max_level, in);
+            sdsl::read_member(m_max_level, in);
         }
 
         //! Represents a node in the wavelet tree
@@ -829,13 +829,13 @@ class wt_int
         }
 
         //! Random access container to bitvector of node v
-        auto bit_vec(const node_type& v) const -> node_bv_container<t_bitvector> {
-            return node_bv_container<t_bitvector>(begin(v), end(v));
+        auto bit_vec(const node_type& v) const -> sdsl::node_bv_container<t_bitvector> {
+            return sdsl::node_bv_container<t_bitvector>(begin(v), end(v));
         }
 
         //! Random access container to sequence of node v
-        auto seq(const node_type& v) const -> random_access_container<std::function<value_type(size_type)>> {
-            return random_access_container<std::function<value_type(size_type)>>([&v, this](size_type i) {
+        auto seq(const node_type& v) const -> sdsl::random_access_container<std::function<value_type(size_type)>> {
+            return sdsl::random_access_container<std::function<value_type(size_type)>>([&v, this](size_type i) {
                 node_type vv = v;
                 while (!is_leaf(vv)) {
                     auto vs = expand(vv);
@@ -908,9 +908,9 @@ class wt_int
          *          range mapped to the right child of v.
          *  \pre !is_leaf(v) and s>=v_s and e<=v_e
          */
-        std::array<range_vec_type, 2>
+        std::array<sdsl::range_vec_type, 2>
         expand(const node_type& v,
-               const range_vec_type& ranges) const {
+               const sdsl::range_vec_type& ranges) const {
             auto ranges_copy = ranges;
             return expand(v, std::move(ranges_copy));
         }
@@ -925,11 +925,11 @@ class wt_int
          *          range mapped to the right child of v.
          *  \pre !is_leaf(v) and s>=v_s and e<=v_e
          */
-        std::array<range_vec_type, 2>
+        std::array<sdsl::range_vec_type, 2>
         expand(const node_type& v,
-               range_vec_type&& ranges) const {
+               sdsl::range_vec_type&& ranges) const {
             auto v_sp_rank = m_tree_rank(v.offset);  // this is already calculated in expand(v)
-            range_vec_type res(ranges.size());
+            sdsl::range_vec_type res(ranges.size());
             size_t i = 0;
             for (auto& r : ranges) {
                 auto sp_rank    = m_tree_rank(v.offset + r[0]);
@@ -956,8 +956,8 @@ class wt_int
          *          range mapped to the right child of v.
          *  \pre !is_leaf(v) and s>=v_s and e<=v_e
          */
-        std::array<range_type, 2>
-        expand(const node_type& v, const range_type& r) const {
+        std::array<sdsl::range_type, 2>
+        expand(const node_type& v, const sdsl::range_type& r) const {
             auto v_sp_rank = m_tree_rank(v.offset);  // this is already calculated in expand(v)
             auto sp_rank    = m_tree_rank(v.offset + r[0]);
             auto right_size = m_tree_rank(v.offset + r[1] + 1)

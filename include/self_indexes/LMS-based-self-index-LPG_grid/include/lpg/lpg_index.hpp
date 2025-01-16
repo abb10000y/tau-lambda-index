@@ -638,6 +638,8 @@ public:
     void swap(lpg_index &&other) {
         std::swap(grammar_tree, other.grammar_tree);
         std::swap(m_grid, other.m_grid);
+        std::swap(Y, other.Y);
+        std::swap(rank_Y, other.rank_Y);
         std::swap(symbols_map, other.symbols_map);
         std::swap(m_sigma, other.m_sigma);
         std::swap(parsing_rounds, other.parsing_rounds);

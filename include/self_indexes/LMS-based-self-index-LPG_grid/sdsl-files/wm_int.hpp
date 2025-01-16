@@ -141,7 +141,7 @@ class wm_int
                 return;
             size_type n = buf.size();  // set n
             if (n < m_size) {
-                throw std::logic_error("n="+util::to_string(n)+" < "+util::to_string(m_size)+"=m_size");
+                throw std::logic_error("n="+sdsl::util::to_string(n)+" < "+sdsl::util::to_string(m_size)+"=m_size");
                 return;
             }
             m_sigma = 0; // init sigma
@@ -162,12 +162,12 @@ class wm_int
             }
 
 
-            std::string tree_out_buf_file_name = tmp_file(buf.filename(), "_m_tree");
+            std::string tree_out_buf_file_name = sdsl::tmp_file(buf.filename(), "_m_tree");
             osfstream tree_out_buf(tree_out_buf_file_name, std::ios::binary | std::ios::trunc | std::ios::out);   // open buffer for tree
             size_type bit_size = m_size*m_max_level;
             tree_out_buf.write((char*) &bit_size, sizeof(bit_size));    // write size of bit_vector
 
-            std::string zero_buf_file_name = tmp_file(buf.filename(), "_zero_buf");
+            std::string zero_buf_file_name = sdsl::tmp_file(buf.filename(), "_zero_buf");
 
             size_type tree_pos = 0;
             uint64_t tree_word = 0;
@@ -210,9 +210,9 @@ class wm_int
             load_from_file(tree, tree_out_buf_file_name);
             sdsl::remove(tree_out_buf_file_name);
             m_tree = bit_vector_type(std::move(tree));
-            util::init_support(m_tree_rank, &m_tree);
-            util::init_support(m_tree_select0, &m_tree);
-            util::init_support(m_tree_select1, &m_tree);
+            sdsl::util::init_support(m_tree_rank, &m_tree);
+            sdsl::util::init_support(m_tree_select0, &m_tree);
+            sdsl::util::init_support(m_tree_select1, &m_tree);
             m_rank_level = int_vector<64>(m_max_level, 0);
             for (uint32_t k=0; k<m_rank_level.size(); ++k) {
                 m_rank_level[k] = m_tree_rank(k*m_size);
@@ -267,9 +267,9 @@ class wm_int
                 std::swap(m_size, wt.m_size);
                 std::swap(m_sigma,  wt.m_sigma);
                 m_tree.swap(wt.m_tree);
-                util::swap_support(m_tree_rank, wt.m_tree_rank, &m_tree, &(wt.m_tree));
-                util::swap_support(m_tree_select1, wt.m_tree_select1, &m_tree, &(wt.m_tree));
-                util::swap_support(m_tree_select0, wt.m_tree_select0, &m_tree, &(wt.m_tree));
+                sdsl::util::swap_support(m_tree_rank, wt.m_tree_rank, &m_tree, &(wt.m_tree));
+                sdsl::util::swap_support(m_tree_select1, wt.m_tree_select1, &m_tree, &(wt.m_tree));
+                sdsl::util::swap_support(m_tree_select0, wt.m_tree_select0, &m_tree, &(wt.m_tree));
                 std::swap(m_max_level,  wt.m_max_level);
                 m_zero_cnt.swap(wt.m_zero_cnt);
                 m_rank_level.swap(wt.m_rank_level);
@@ -579,15 +579,15 @@ class wm_int
         //! Serializes the data structure into the given ostream
         size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const
         {
-            structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
+            structure_tree_node* child = structure_tree::add_child(v, name, sdsl::util::class_name(*this));
             size_type written_bytes = 0;
-            written_bytes += write_member(m_size, out, child, "size");
-            written_bytes += write_member(m_sigma, out, child, "sigma");
+            written_bytes += sdsl::write_member(m_size, out, child, "size");
+            written_bytes += sdsl::write_member(m_sigma, out, child, "sigma");
             written_bytes += m_tree.serialize(out, child, "tree");
             written_bytes += m_tree_rank.serialize(out, child, "tree_rank");
             written_bytes += m_tree_select1.serialize(out, child, "tree_select_1");
             written_bytes += m_tree_select0.serialize(out, child, "tree_select_0");
-            written_bytes += write_member(m_max_level, out, child, "max_level");
+            written_bytes += sdsl::write_member(m_max_level, out, child, "max_level");
             written_bytes += m_zero_cnt.serialize(out, child, "zero_cnt");
             written_bytes += m_rank_level.serialize(out, child, "rank_level");
             structure_tree::add_size(child, written_bytes);
@@ -597,13 +597,13 @@ class wm_int
         //! Loads the data structure from the given istream.
         void load(std::istream& in)
         {
-            read_member(m_size, in);
-            read_member(m_sigma, in);
+            sdsl::read_member(m_size, in);
+            sdsl::read_member(m_sigma, in);
             m_tree.load(in);
             m_tree_rank.load(in, &m_tree);
             m_tree_select1.load(in, &m_tree);
             m_tree_select0.load(in, &m_tree);
-            read_member(m_max_level, in);
+            sdsl::read_member(m_max_level, in);
             m_zero_cnt.load(in);
             m_rank_level.load(in);
         }

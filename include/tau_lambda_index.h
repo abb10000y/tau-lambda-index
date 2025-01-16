@@ -268,6 +268,8 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
         char *in = new char[lz77Path.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
         std::strcpy(in, lz77Path.c_str());
         lz77 = lz77index::static_selfindex::load(in);
+    } else if (self_index_type == 3) {
+        lms.load(in);
     }
 }
 
@@ -289,6 +291,15 @@ std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
             std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc);
             result.resize(tmp->size());
             for (size_t i = 0; i < tmp->size(); i++) { result[i] = static_cast<uint64_t>((*tmp)[i]); }
+        } else if (self_index_type == 3) {
+            std::set<lpg_index::size_type> tmp;
+            lms.locate(pattern, tmp);
+            //result.resize(tmp.size());
+            if (tmp.size() >= tau_l) {
+                size_t i = 0;
+                //for (auto itr = tmp.begin(); itr != tmp.end(); itr++) { result[i] = *itr; }
+                for (auto r : tmp) { result.push_back(r); }
+            }
         }
     }
 

@@ -70,20 +70,20 @@ namespace LMS_sdsl
  */
 template<uint32_t t_sml_blk = 256,
          uint32_t t_med_deg = 32,
-         class t_rank       = rank_support_v5<>,
-         class t_select     = select_support_mcl<> >
+         class t_rank       = sdsl::rank_support_v5<>,
+         class t_select     = sdsl::select_support_mcl<> >
 class bp_support_sada
 {
     public:
-        typedef bit_vector::size_type       size_type;
-        typedef bit_vector::difference_type difference_type;
-        typedef int_vector<>                sml_block_array_type;
-        typedef int_vector<>                med_block_array_type;
+        typedef sdsl::bit_vector::size_type       size_type;
+        typedef sdsl::bit_vector::difference_type difference_type;
+        typedef sdsl::int_vector<>                sml_block_array_type;
+        typedef sdsl::int_vector<>                med_block_array_type;
         typedef t_rank                      rank_type;
         typedef t_select                    select_type;
     private:
         static_assert(0 < t_sml_blk, "bp_support_sada: t_sml_blk should be greater than 0!");
-        const bit_vector* m_bp        = nullptr;   // the supported balanced parentheses sequence as bit_vector
+        const sdsl::bit_vector* m_bp        = nullptr;   // the supported balanced parentheses sequence as bit_vector
         rank_type         m_bp_rank;   // RS for the BP sequence => see excess() and rank()
         select_type       m_bp_select; // SS for the BP sequence => see select()
 
@@ -367,7 +367,7 @@ private:
         bp_support_sada() {}
 
         //! Constructor
-        explicit bp_support_sada(const bit_vector* bp): m_bp(bp),
+        explicit bp_support_sada(const sdsl::bit_vector* bp): m_bp(bp),
             m_size(bp==nullptr?0:bp->size()),
             m_sml_blocks((m_size+t_sml_blk-1)/t_sml_blk),
             m_med_blocks((m_size+t_sml_blk* t_med_deg-1)/(t_sml_blk* t_med_deg)),
@@ -376,8 +376,8 @@ private:
             if (bp == nullptr or bp->size()==0)
                 return;
             // initialize rank and select
-            util::init_support(m_bp_rank, bp);
-            util::init_support(m_bp_select, bp);
+            sdsl::util::init_support(m_bp_rank, bp);
+            sdsl::util::init_support(m_bp_select, bp);
 
             m_med_inner_blocks = 1;
             // m_med_inner_blocks = (next power of 2 greater than or equal to m_med_blocks)-1
@@ -387,8 +387,8 @@ private:
             --m_med_inner_blocks;
             assert((m_med_inner_blocks == 0) or(m_med_inner_blocks%2==1));
 
-            m_sml_block_min_max = int_vector<>(2*m_sml_blocks, 0, bits::hi(t_sml_blk+2)+1);
-            m_med_block_min_max = int_vector<>(2*(m_med_blocks+m_med_inner_blocks), 0, bits::hi(2*m_size+2)+1);
+            m_sml_block_min_max = sdsl::int_vector<>(2*m_sml_blocks, 0, sdsl::bits::hi(t_sml_blk+2)+1);
+            m_med_block_min_max = sdsl::int_vector<>(2*(m_med_blocks+m_med_inner_blocks), 0, sdsl::bits::hi(2*m_size+2)+1);
 
             // calculate min/max excess values of the small blocks and medium blocks
             difference_type min_ex = 1, max_ex = -1, curr_rel_ex = 0, curr_abs_ex = 0;
@@ -496,7 +496,7 @@ private:
                     return *this;
                 }
         */
-        void set_vector(const bit_vector* bp)
+        void set_vector(const sdsl::bit_vector* bp)
         {
             m_bp = bp;
             m_bp_rank.set_vector(bp);
@@ -674,7 +674,7 @@ private:
             return size();
         }
 
-        size_type median_block_rmq(size_type l_sblock, size_type r_sblock, bit_vector::difference_type& min_ex)const
+        size_type median_block_rmq(size_type l_sblock, size_type r_sblock, sdsl::bit_vector::difference_type& min_ex)const
         {
             assert(l_sblock <= r_sblock+1);
             size_type pos_min_block = (size_type)-1;
@@ -906,14 +906,14 @@ private:
          * \param out The outstream to which the data structure is written.
          * \return The number of bytes written to out.
          */
-        size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const
+        size_type serialize(std::ostream& out, sdsl::structure_tree_node* v=nullptr, std::string name="")const
         {
-            structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
+            sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
             size_type written_bytes = 0;
-            written_bytes += write_member(m_size, out, child, "size");
-            written_bytes += write_member(m_sml_blocks, out, child, "sml_block_cnt");
-            written_bytes += write_member(m_med_blocks, out, child, "med_block_cnt");
-            written_bytes += write_member(m_med_inner_blocks, out, child, "med_inner_blocks");
+            written_bytes += sdsl::write_member(m_size, out, child, "size");
+            written_bytes += sdsl::write_member(m_sml_blocks, out, child, "sml_block_cnt");
+            written_bytes += sdsl::write_member(m_med_blocks, out, child, "med_block_cnt");
+            written_bytes += sdsl::write_member(m_med_inner_blocks, out, child, "med_inner_blocks");
 
             written_bytes += m_bp_rank.serialize(out, child, "bp_rank");
             written_bytes += m_bp_select.serialize(out, child, "bp_select");
@@ -921,7 +921,7 @@ private:
             written_bytes += m_sml_block_min_max.serialize(out, child, "sml_blocks");
             written_bytes += m_med_block_min_max.serialize(out, child, "med_blocks");
 
-            structure_tree::add_size(child, written_bytes);
+            sdsl::structure_tree::add_size(child, written_bytes);
             return written_bytes;
         }
 
@@ -930,14 +930,14 @@ private:
          * \param in The instream from which the data structure is read.
          * \param bp Bit vector representing a balanced parentheses sequence that is supported by this data structure.
          */
-        void load(std::istream& in, const bit_vector* bp)
+        void load(std::istream& in, const sdsl::bit_vector* bp)
         {
             m_bp = bp;
-            read_member(m_size, in);
+            sdsl::read_member(m_size, in);
             assert(m_size == bp->size());
-            read_member(m_sml_blocks, in);
-            read_member(m_med_blocks, in);
-            read_member(m_med_inner_blocks, in);
+            sdsl::read_member(m_sml_blocks, in);
+            sdsl::read_member(m_med_blocks, in);
+            sdsl::read_member(m_med_inner_blocks, in);
 
             m_bp_rank.load(in, m_bp);
             m_bp_select.load(in, m_bp);
