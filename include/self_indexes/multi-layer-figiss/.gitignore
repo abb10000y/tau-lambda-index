@@ -1,0 +1,13 @@
+.DS_Store
+.vscode
+output*
+output/*
+output_test/*
+output_hashingMF_test/*
+dataset/*
+archived/*
+20231003/*
+2023*/
+output_with_lambda_function/*
+text
+sdsl
