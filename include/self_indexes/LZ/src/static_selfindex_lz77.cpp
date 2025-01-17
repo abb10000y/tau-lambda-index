@@ -1,6 +1,7 @@
 #include "static_selfindex_lz77.h"
 
 #include <algorithm>
+#include <sdsl/ram_fs.hpp>
 
 #include "utils.h"
 #include "utils_index.h"
@@ -319,6 +320,11 @@ static_selfindex_lz77* static_selfindex_lz77::build(char* filename, char* filena
     ret = static_selfindex_lz77::load(lz77index_fp);
     fclose(lz77index_fp);
     ret->z = tmp_z;
+    sdsl::remove(sfile+std::string(".alph"));
+    sdsl::remove(sfile+std::string(".alph.char"));
+    sdsl::remove(sfile+std::string(".alph.len"));
+    sdsl::remove(sfile+std::string(".alph.sa"));
+    sdsl::remove(sfile+std::string(".alph.start"));
     return ret;
 }
 static_selfindex_lz77::~static_selfindex_lz77(){

@@ -251,6 +251,7 @@ protected:
         std::string id_sb = sdsl::util::basename("sb_file") + "_";
         sdsl::cache_config file_conf_sb(false,"./",id_sb);
         sdsl::construct(sb,"sb_file",file_conf_sb,0);
+        sdsl::remove("sb_file");
 #ifdef DEBUG_PRINT
         std::cout<<"GRID:SB"<<std::endl;
         for (int i = 0; i < sb.size(); ++i) {

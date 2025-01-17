@@ -339,6 +339,7 @@ protected:
         sdsl::serialize(_x, x_file);
         x_file.close();
         sdsl::construct(X, "x_file", 0);
+        sdsl::remove("x_file");
         F = vi (_f);
         Z = bv_z(_z);
         L = bv_l (_l);

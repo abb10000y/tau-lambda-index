@@ -253,6 +253,7 @@ namespace utils {
         sdsl::remove(sdsl::cache_file_name(sdsl::conf::KEY_SA, config));
         sdsl::remove(sdsl::cache_file_name(sdsl::conf::KEY_TEXT, config));
         sdsl::remove(sdsl::cache_file_name(sdsl::conf::KEY_LCP, config));
+        sdsl::remove(sdsl::conf::KEY_TEXT);
 #ifdef DEBUG_PRINT
         std::cout<<"LCP"<<std::endl;
         for (const auto &item : LCP) {
