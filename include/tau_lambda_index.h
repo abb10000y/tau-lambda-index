@@ -24,11 +24,18 @@
 #include "self_indexes/LMS-based-self-index-LPG_grid/third-party/CLI11.hpp"
 #include "self_indexes/multi-layer-figiss/src/components/Index.h"
 
+enum class index_types {
+    r_index_type = 1,
+    lz77_type = 2,
+    LMS_type = 3,
+    old_tau_lambda_type = 4
+};
+
 class tau_lambda_index {
 public:
     tau_lambda_index(){}
-    tau_lambda_index(std::string text_path, std::string mf_path, size_t self_index_type);
-    tau_lambda_index(std::string text_path, std::string mf_path, std::string index_path, size_t self_index_type);
+    tau_lambda_index(std::string text_path, std::string mf_path, index_types index_type);
+    tau_lambda_index(std::string text_path, std::string mf_path, std::string index_path, index_types index_type);
     void serialize(std::ofstream &out);
     void load(std::ifstream &in, std::string inputIndexPath);
     void load_min_factors(std::ifstream &in);
@@ -38,18 +45,19 @@ public:
     double get_masked_ratio() { return masked_ratio; }
     void log(std::ofstream& out) {
         out << "tau_l, tau_u, lambda: " << tau_l << ", " << tau_u << ", " << lambda << "\n";
-        if (self_index_type == 1) {
+        if (index_type == index_types::r_index_type) {
             out << "bwt_runs: " << r_index->number_of_runs() << "\n";
-        } else if (self_index_type == 2) {
+        } else if (index_type == index_types::lz77_type) {
             out << "number_of_phrases: " << lz77->z << "\n";
-        } else if (self_index_type == 3) {
+        } else if (index_type == index_types::LMS_type) {
             out << "grammar_size: " << lms.grammar_tree.get_grammar_size() << "\n";
         }
         out << "masked_ratio: " << masked_ratio << "\n" ;
     }
 
 private:
-    size_t self_index_type, tau_l, tau_u, lambda;
+    size_t tau_l, tau_u, lambda;
+    index_types index_type;
     std::string inputTextPath, text;
     double masked_ratio;
     XBWT* xbwt {new XBWT()}; // TODO: memory leak
@@ -58,7 +66,7 @@ private:
     //std::unordered_set<char> delimiters; // TODO: no need?
     uint64_t t_symbol = static_cast<uint64_t>(1); // terminate symbols
 
-    // self_indexes
+    // underlying_indexes
     ri::r_index<> *r_index;
     lz77index::static_selfindex_lz77* lz77;
     lpg_index lms;
@@ -141,8 +149,8 @@ void tau_lambda_index::load_min_factors(std::ifstream &in) {
 }
 
 // Constructor for r-index, LMS and old-tau-lambda-index(DCC version)
-tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, size_t self_index_type):
-self_index_type(self_index_type), inputTextPath(text_path)
+tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, index_types index_type):
+index_type(index_type), inputTextPath(text_path)
 {
     std::ifstream text_in(text_path);
     if (!text_in.is_open()) {
@@ -162,7 +170,7 @@ self_index_type(self_index_type), inputTextPath(text_path)
     load_min_factors(mf_in);
     mf_in.close();
 
-    if (self_index_type == 4) {
+    if (index_type == index_types::old_tau_lambda_type) {
         old_tau_lambda = new Index(text, min_factors, tau_l, tau_u, lambda);
     } else {
         build_XBWT(text);
@@ -178,8 +186,8 @@ self_index_type(self_index_type), inputTextPath(text_path)
         tmpMaskedTextfile << maskedText;
         tmpMaskedTextfile.close();
 
-        // TODO: generate the self-index
-        if (self_index_type == 1) {
+        // generate the self-index
+        if (index_type == index_types::r_index_type) {
             std::string input;
             std::ifstream fs(maskedTextPath);
             std::stringstream buffer;
@@ -187,7 +195,7 @@ self_index_type(self_index_type), inputTextPath(text_path)
 
             input = buffer.str();
             r_index = new ri::r_index<>(input, true);
-        } else if (self_index_type == 3) {
+        } else if (index_type == index_types::LMS_type) {
             std::string LMSTemp = "/tmp"; // same as the default value, don't change
             lms = lpg_index(text_path, LMSTemp, 1, 0.5);
         }
@@ -200,8 +208,8 @@ self_index_type(self_index_type), inputTextPath(text_path)
 }
 
 // Constructor for LZ77
-tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, std::string index_path, size_t self_index_type):
- self_index_type(self_index_type), inputTextPath(text_path)
+tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, std::string index_path, index_types index_type):
+ index_type(index_type), inputTextPath(text_path)
  {
     std::ifstream text_in(text_path);
     if (!text_in.is_open()) {
@@ -234,7 +242,7 @@ tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, s
     tmpMaskedTextfile << maskedText;
     tmpMaskedTextfile.close();
 
-    if (self_index_type == 2) {
+    if (index_type == index_types::lz77_type) {
         unsigned char br=0;
         unsigned char bs=0;
         unsigned char ss=0;
@@ -254,19 +262,19 @@ void tau_lambda_index::serialize(std::ofstream &out) {
     size_t length = inputTextPath.size();
     out.write(reinterpret_cast<char*>(&length), sizeof(length));
     out.write(inputTextPath.data(), length);
-    sdsl::write_member(self_index_type, out);
+    sdsl::write_member(index_type, out);
     sdsl::write_member(tau_l, out);
     sdsl::write_member(tau_u, out);
     sdsl::write_member(lambda, out);
-    if (self_index_type == 4) {
+    if (index_type == index_types::old_tau_lambda_type) {
         old_tau_lambda->serialize(out);
     } else {
         sdsl::write_member(masked_ratio, out);
         symbol_table_.Serialize(out);
         xbwt->Serialize(out);
-        if (self_index_type == 1) {
+        if (index_type == index_types::r_index_type) {
             r_index->serialize(out);
-        } else if (self_index_type == 3) {
+        } else if (index_type == index_types::LMS_type) {
             lms.serialize(out, NULL, "");
         }
     }
@@ -278,11 +286,11 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
     inputTextPath.resize(length);
     in.read(&inputTextPath[0], length);
     
-    sdsl::read_member(self_index_type, in);
+    sdsl::read_member(index_type, in);
     sdsl::read_member(tau_l, in);
     sdsl::read_member(tau_u, in);
     sdsl::read_member(lambda, in);
-    if (self_index_type == 4) {
+    if (index_type == index_types::old_tau_lambda_type) {
         std::ifstream text_in(inputTextPath);
         if (!text_in.is_open()) {
             std::cerr << "Error: Could not open input text file " << inputTextPath << std::endl;
@@ -299,15 +307,15 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
         sdsl::read_member(masked_ratio, in);
         symbol_table_.Load(in);
         xbwt->Load(in);
-        if (self_index_type == 1) {
+        if (index_type == index_types::r_index_type) {
             r_index = new ri::r_index<>();
             r_index->load(in);
-        } else if (self_index_type == 2) {
+        } else if (index_type == index_types::lz77_type) {
             std::string lz77Path = inputIndexPath + "_lz77";
             FILE* fd = fopen(lz77Path.c_str(), "r");
             lz77 = lz77index::static_selfindex_lz77::load(fd);
             fclose(fd);
-        } else if (self_index_type == 3) {
+        } else if (index_type == index_types::LMS_type) {
             lms.load(in);
         }
     }
@@ -320,14 +328,14 @@ std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
     pattern_int.resize(pattern.size());
     for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[pattern[i] + t_symbol]; }
     // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
-    if (self_index_type == 4 && pattern.length() <= lambda) {
+    if (index_type == index_types::old_tau_lambda_type && pattern.length() <= lambda) {
         std::vector<size_t> tmp = old_tau_lambda->location_tree_search(pattern);
         for (auto r : tmp) { result.push_back(r); }
     } else {
         if (pattern.length() <= lambda && xbwt->match_if_exist(pattern_int)) {
-            if (self_index_type == 1) {
+            if (index_type == index_types::r_index_type) {
                 result = r_index->locate_all_tau(pattern, tau_l);
-            } else if (self_index_type == 2) {
+            } else if (index_type == index_types::lz77_type) {
                 unsigned char *p = new unsigned char[pattern.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
                 std::memcpy(p, pattern.c_str(), pattern.size() + 1);
                 unsigned int nooc;
@@ -336,7 +344,7 @@ std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
                     result.resize(tmp->size());
                     for (size_t i = 0; i < tmp->size(); i++) { result[i] = static_cast<uint64_t>((*tmp)[i]); }
                 }
-            } else if (self_index_type == 3) {
+            } else if (index_type == index_types::LMS_type) {
                 std::set<lpg_index::size_type> tmp;
                 lms.locate(pattern, tmp);
                 //result.resize(tmp.size());

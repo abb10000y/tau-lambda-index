@@ -10,6 +10,7 @@ To gengerate the tau-lambda index of the text (need to gen the minimal factors f
     - 1: r-index
     - 2: LZ77
     - 3: LMS
+    - 4: DCC version
 
 To do the locations queries:
 ./locate [input index path] [input pattern path] [output results path]

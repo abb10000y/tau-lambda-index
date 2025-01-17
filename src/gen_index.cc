@@ -17,7 +17,8 @@ int main(int argc, char* argv[]) {
     std::string inputTextPath = argv[1];
     std::string inputMfPath = argv[2];
     std::string outputIndexPath = argv[3];
-    uint64_t selfIndexType = std::stod(argv[4]);
+    // uint64_t selfIndexType = std::stod(argv[4]);
+    index_types index_type = static_cast<index_types>(std::stod(argv[4]));
     std::string outputLogPath;
     if (argc == 6) { outputLogPath = argv[5]; }
 
@@ -37,11 +38,11 @@ int main(int argc, char* argv[]) {
     tau_lambda_index* idx;
     std::chrono::steady_clock::time_point t1, t2;
     t1 = std::chrono::steady_clock::now();
-    if (selfIndexType == 1 || selfIndexType == 3 || selfIndexType == 4) {
-        idx = new tau_lambda_index(inputTextPath, inputMfPath, selfIndexType);
-    } else if (selfIndexType == 2) {
+    if (index_type == index_types::r_index_type || index_type == index_types::LMS_type || index_type == index_types::old_tau_lambda_type) {
+        idx = new tau_lambda_index(inputTextPath, inputMfPath, index_type);
+    } else if (index_type == index_types::lz77_type) {
         std::string lz77OutPath= outputIndexPath + "_lz77";
-        idx = new tau_lambda_index(inputTextPath, inputMfPath, lz77OutPath, selfIndexType);
+        idx = new tau_lambda_index(inputTextPath, inputMfPath, lz77OutPath, index_type);
     } else {
         throw std::runtime_error("Invalid selfIndexType\n");
     }
