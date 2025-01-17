@@ -43,6 +43,7 @@ public:
     std::vector<ulint> locate_r_index(std::string &pattern);
     double get_masked_ratio() { return masked_ratio; }
     void log(std::ofstream& out) {
+        out << "[" << inputTextPath << "]\n";
         out << "tau_l, tau_u, lambda: " << tau_l << ", " << tau_u << ", " << lambda << "\n";
         if (index_type == index_types::r_index_type) {
             out << "bwt_runs: " << r_index->number_of_runs() << "\n";
