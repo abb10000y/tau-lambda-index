@@ -7,6 +7,7 @@
 
 #include <pthread.h>
 #include <iostream>
+#include <sdsl/ram_fs.hpp>
 #include <cstdlib>
 #include "../mem_monitor/mem_monitor.hpp"
 #include "lpg_build.hpp"
@@ -621,7 +622,8 @@ public:
         csv_file << "name,time-grammar,time-index\n";
         csv_file << "LPG-INDEX-RRR,"+std::to_string(elapsed_grammar.count())+","+std::to_string(elapsed_index.count())+"\n";
 
-
+        sdsl::remove(input_file + "-mem.csv");
+        sdsl::remove(input_file + "build-time.csv");
     }
 
     lpg_index() = default;
