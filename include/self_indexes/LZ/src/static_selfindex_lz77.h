@@ -41,6 +41,7 @@ namespace lz77index{
 class static_selfindex_lz77 : public static_selfindex {
     public:
         ~static_selfindex_lz77();
+        size_t z;
         unsigned int size();
         /** Saves the index to a file */
         unsigned int save(FILE *fp);

@@ -41,7 +41,7 @@ public:
         if (self_index_type == 1) {
             out << "bwt_runs: " << r_index->number_of_runs() << "\n";
         } else if (self_index_type == 2) {
-            out << "number_of_phrases: " << "PLEASE CHECK THE CONSTRUCTION LOG" << "\n";
+            out << "number_of_phrases: " << lz77->z << "\n";
         } else if (self_index_type == 3) {
             out << "grammar_size: " << lms.grammar_tree.get_grammar_size() << "\n";
         }
@@ -60,7 +60,7 @@ private:
 
     // self_indexes
     ri::r_index<> *r_index;
-    lz77index::static_selfindex* lz77;
+    lz77index::static_selfindex_lz77* lz77;
     lpg_index lms;
     Index* old_tau_lambda;
 
@@ -304,9 +304,9 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
             r_index->load(in);
         } else if (self_index_type == 2) {
             std::string lz77Path = inputIndexPath + "_lz77";
-            char *in = new char[lz77Path.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
-            std::strcpy(in, lz77Path.c_str());
-            lz77 = lz77index::static_selfindex::load(in);
+            FILE* fd = fopen(lz77Path.c_str(), "r");
+            lz77 = lz77index::static_selfindex_lz77::load(fd);
+            fclose(fd);
         } else if (self_index_type == 3) {
             lms.load(in);
         }
@@ -354,14 +354,14 @@ std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
 void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
     std::chrono::steady_clock::time_point t1, t2;
 
-    string header;
+    std::string header;
 	std::getline(in, header);
 
 	size_t n = get_number_of_patterns(header);
 	size_t m = get_patterns_length(header);
 
     for (size_t i = 0; i < n; i++) {
-        string pattern = string();
+        std::string pattern;
 
 		for(size_t j = 0; j < m; j++){
 			char c;

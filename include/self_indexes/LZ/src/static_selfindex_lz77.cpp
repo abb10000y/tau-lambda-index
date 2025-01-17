@@ -118,6 +118,7 @@ static_selfindex_lz77* static_selfindex_lz77::build(char* filename, char* filena
         return NULL;
     }
     std::cout<<"(S)Phrases: "<<phrases->size()<<std::endl;
+    size_t tmp_z = phrases->size();
     delete phrases;
 
     /************************************************************************************************************************************************************************************************/   
@@ -317,6 +318,7 @@ static_selfindex_lz77* static_selfindex_lz77::build(char* filename, char* filena
     lz77index_fp = fopen(filenameidx,"r");
     ret = static_selfindex_lz77::load(lz77index_fp);
     fclose(lz77index_fp);
+    ret->z = tmp_z;
     return ret;
 }
 static_selfindex_lz77::~static_selfindex_lz77(){
