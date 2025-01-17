@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
     std::cout << "end\n";
 
     k_factor_tree ksf(intputContent, lambda, tau_l, tau_u, delimiter);
-    ksf.Serialize_min_factors(outputFile);
+    ksf.Serialize_min_factors(outputFile, inputTextPath);
 
     inputFile.close();
     outputFile.close();

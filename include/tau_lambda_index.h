@@ -34,11 +34,10 @@ enum class index_types {
 class tau_lambda_index {
 public:
     tau_lambda_index(){}
-    tau_lambda_index(std::string text_path, std::string mf_path, index_types index_type);
-    tau_lambda_index(std::string text_path, std::string mf_path, std::string index_path, index_types index_type);
+    tau_lambda_index(std::string &mf_path, index_types index_type);
+    tau_lambda_index(std::string &mf_path, std::string &index_path, index_types index_type);
     void serialize(std::ofstream &out);
     void load(std::ifstream &in, std::string inputIndexPath);
-    void load_min_factors(std::ifstream &in);
     void locate(std::ifstream &in, std::ofstream &out);
     bool locate_xbwt(std::string &pattern);
     std::vector<ulint> locate_r_index(std::string &pattern);
@@ -72,9 +71,36 @@ private:
     lpg_index lms;
     Index* old_tau_lambda;
 
+    void load_min_factors(std::string &mf_path);
     void build_XBWT(const std::string &text);
     void gen_masked_text(const std::string &text, std::string &masked_text);
     std::vector<uint64_t> _locate(std::string &pattern);
+    void load_rawText_path(std::ifstream &in) {
+        size_t length;
+        in.read(reinterpret_cast<char*>(&length), sizeof(length));
+        inputTextPath.resize(length);
+        in.read(&inputTextPath[0], length);
+    }
+    void load_Text(std::string &text, std::string &textPath) {
+        std::ifstream text_in(textPath);
+        if (!text_in.is_open()) {
+            std::cerr << "Error: Could not open input text file " << textPath << std::endl;
+            return;
+        }
+        std::stringstream buffer;
+        buffer << text_in.rdbuf();
+        text = buffer.str();
+        text_in.close();
+    }
+    void output_Text(std::string &text, std::string &textPath) {
+        std::ofstream out(textPath);
+        if (!out.is_open()) {
+            std::cerr << "Error: Could not open output file " << textPath << std::endl;
+            return;
+        }
+        out << text;
+        out.close();
+    }
 };
 
 void tau_lambda_index::gen_masked_text(const std::string &text, std::string &masked_text) {
@@ -135,10 +161,17 @@ void tau_lambda_index::build_XBWT(const std::string &text) {
     xbwt->insert(concated_mf_int_vector, symbol_table_.GetEffectiveAlphabetWidth(), symbol_table_.GetAlphabetSize());
 }
 
-void tau_lambda_index::load_min_factors(std::ifstream &in) {
-    std::string tmp;
+void tau_lambda_index::load_min_factors(std::string &mf_path) {
+    std::ifstream in(mf_path);
+    if (!in.is_open()) {
+        std::cerr << "Error: Could not open input minimal_factors file " << mf_path << std::endl;
+        return;
+    }
+
+    load_rawText_path(in);
+    std::string delimiters_tmp;
     size_t n;
-    in >> tau_l >> tau_u >> lambda >> tmp >> n;
+    in >> tau_l >> tau_u >> lambda >> delimiters_tmp >> n;
     // for (auto c : tmp) { delimiters.insert(c); }
     while (n > 0) {
         size_t a, b;
@@ -146,58 +179,32 @@ void tau_lambda_index::load_min_factors(std::ifstream &in) {
         min_factors.push_back({a, b});
         n--;
     }
+
+    in.close();
 }
 
 // Constructor for r-index, LMS and old-tau-lambda-index(DCC version)
-tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, index_types index_type):
-index_type(index_type), inputTextPath(text_path)
-{
-    std::ifstream text_in(text_path);
-    if (!text_in.is_open()) {
-        std::cerr << "Error: Could not open input text file " << text_path << std::endl;
-        return;
-    }
-    std::stringstream buffer;
-    buffer << text_in.rdbuf();
-    text = buffer.str();
-    text_in.close();
-
-    std::ifstream mf_in(mf_path);
-    if (!mf_in.is_open()) {
-        std::cerr << "Error: Could not open input minimal_factors file " << mf_path << std::endl;
-        return;
-    }
-    load_min_factors(mf_in);
-    mf_in.close();
+tau_lambda_index::tau_lambda_index(std::string &mf_path, index_types index_type): index_type(index_type) {
+    load_min_factors(mf_path);
+    load_Text(text, inputTextPath);
 
     if (index_type == index_types::old_tau_lambda_type) {
         old_tau_lambda = new Index(text, min_factors, tau_l, tau_u, lambda);
     } else {
         build_XBWT(text);
-        std::string maskedTextPath = "tmpMaskedText";
-        std::string maskedText;
-        std::ofstream tmpMaskedTextfile(maskedTextPath);
-        if (!tmpMaskedTextfile.is_open()) {
-            std::cerr << "Error: Could not open output tmpMaskedText file " << maskedTextPath << std::endl;
-            return;
-        }
-
+        std::string maskedTextPath = "tmpMaskedText", maskedText;
         gen_masked_text(text, maskedText);
-        tmpMaskedTextfile << maskedText;
-        tmpMaskedTextfile.close();
+        output_Text(maskedText, maskedTextPath);
 
         // generate the self-index
         if (index_type == index_types::r_index_type) {
             std::string input;
-            std::ifstream fs(maskedTextPath);
-            std::stringstream buffer;
-            buffer << fs.rdbuf();
+            load_Text(input, maskedTextPath);
 
-            input = buffer.str();
             r_index = new ri::r_index<>(input, true);
         } else if (index_type == index_types::LMS_type) {
             std::string LMSTemp = "/tmp"; // same as the default value, don't change
-            lms = lpg_index(text_path, LMSTemp, 1, 0.5);
+            lms = lpg_index(inputTextPath, LMSTemp, 1, 0.5);
         }
 
         if (std::remove(maskedTextPath.c_str()) != 0) {
@@ -208,47 +215,23 @@ index_type(index_type), inputTextPath(text_path)
 }
 
 // Constructor for LZ77
-tau_lambda_index::tau_lambda_index(std::string text_path, std::string mf_path, std::string index_path, index_types index_type):
- index_type(index_type), inputTextPath(text_path)
- {
-    std::ifstream text_in(text_path);
-    if (!text_in.is_open()) {
-        std::cerr << "Error: Could not open input text file " << text_path << std::endl;
-        return;
-    }
-    std::stringstream buffer;
-    buffer << text_in.rdbuf();
-    std::string text = buffer.str();
-    text_in.close();
-
-    std::ifstream mf_in(mf_path);
-    if (!mf_in.is_open()) {
-        std::cerr << "Error: Could not open input minimal_factors file " << mf_path << std::endl;
-        return;
-    }
-    load_min_factors(mf_in);
-    mf_in.close();
+tau_lambda_index::tau_lambda_index(std::string &mf_path, std::string &index_path, index_types index_type): index_type(index_type) {
+    load_min_factors(mf_path);
+    load_Text(text, inputTextPath);
 
     build_XBWT(text);
-    std::string maskedTextPath = "tmpMaskedText";
-    std::string maskedText;
-    std::ofstream tmpMaskedTextfile(maskedTextPath);
-    if (!tmpMaskedTextfile.is_open()) {
-        std::cerr << "Error: Could not open output tmpMaskedText file " << maskedTextPath << std::endl;
-        return;
-    }
-
+    std::string maskedTextPath = "tmpMaskedText", maskedText;
     gen_masked_text(text, maskedText);
-    tmpMaskedTextfile << maskedText;
-    tmpMaskedTextfile.close();
+    output_Text(maskedText, maskedTextPath);
 
     if (index_type == index_types::lz77_type) {
         unsigned char br=0;
         unsigned char bs=0;
         unsigned char ss=0;
-        char *in = new char[maskedTextPath.size() + 1], *out = new char[index_path.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
+        char *in = new char[maskedTextPath.size() + 1], *out = new char[index_path.size() + 1];
         std::strcpy(in, maskedTextPath.c_str());
         std::strcpy(out, index_path.c_str());
+        //lz77 = lz77index::static_selfindex_lz77::build(in, out, br, bs, ss);
         lz77 = lz77index::static_selfindex_lz77::build(in, out, br, bs, ss);
     }
 
@@ -281,25 +264,14 @@ void tau_lambda_index::serialize(std::ofstream &out) {
 }
 
 void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
-    size_t length;
-    in.read(reinterpret_cast<char*>(&length), sizeof(length));
-    inputTextPath.resize(length);
-    in.read(&inputTextPath[0], length);
+    load_rawText_path(in);
     
     sdsl::read_member(index_type, in);
     sdsl::read_member(tau_l, in);
     sdsl::read_member(tau_u, in);
     sdsl::read_member(lambda, in);
     if (index_type == index_types::old_tau_lambda_type) {
-        std::ifstream text_in(inputTextPath);
-        if (!text_in.is_open()) {
-            std::cerr << "Error: Could not open input text file " << inputTextPath << std::endl;
-            return;
-        }
-        std::stringstream buffer;
-        buffer << text_in.rdbuf();
-        text = buffer.str();
-        text_in.close();
+        load_Text(text, inputIndexPath);
 
         old_tau_lambda = new Index(text);
         old_tau_lambda->load(in);

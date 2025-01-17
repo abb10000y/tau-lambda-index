@@ -39,10 +39,10 @@ int main(int argc, char* argv[]) {
     std::chrono::steady_clock::time_point t1, t2;
     t1 = std::chrono::steady_clock::now();
     if (index_type == index_types::r_index_type || index_type == index_types::LMS_type || index_type == index_types::old_tau_lambda_type) {
-        idx = new tau_lambda_index(inputTextPath, inputMfPath, index_type);
+        idx = new tau_lambda_index(inputMfPath, index_type);
     } else if (index_type == index_types::lz77_type) {
         std::string lz77OutPath= outputIndexPath + "_lz77";
-        idx = new tau_lambda_index(inputTextPath, inputMfPath, lz77OutPath, index_type);
+        idx = new tau_lambda_index(inputMfPath, lz77OutPath, index_type);
     } else {
         throw std::runtime_error("Invalid selfIndexType\n");
     }

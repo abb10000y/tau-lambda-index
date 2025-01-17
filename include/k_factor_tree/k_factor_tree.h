@@ -86,7 +86,7 @@ public:
     size_t count(std::string &text, std::string &pattern);
     size_t get_node_cnt() { return node_vector.size(); }
     std::vector<std::pair<size_t, size_t>> get_min_factors() { return min_factors; }
-    void Serialize_min_factors (std::ostream &out);
+    void Serialize_min_factors (std::ostream &out, std::string &inputTextPath);
     ~k_factor_tree(){
         for (auto node : node_vector) {
             delete node;
@@ -121,7 +121,11 @@ public:
     */
 };
 
-void k_factor_tree::Serialize_min_factors (std::ostream &out) {
+void k_factor_tree::Serialize_min_factors (std::ostream &out, std::string &inputTextPath) {
+    size_t length = inputTextPath.size();
+    out.write(reinterpret_cast<char*>(&length), sizeof(length));
+    out.write(inputTextPath.data(), length);
+    out << "\n";
     out << tau_l << "\t" << tau_u << "\t" << lambda << "\t";
     out << delimiters_to_string() << "\t";
     out << min_factors.size() << "\n";
