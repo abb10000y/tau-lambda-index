@@ -76,12 +76,6 @@ private:
     void build_XBWT(const std::string &text);
     void gen_masked_text(const std::string &text, std::string &masked_text);
     std::vector<uint64_t> _locate(std::string &pattern);
-    void load_rawText_path(std::ifstream &in) {
-        size_t length;
-        in.read(reinterpret_cast<char*>(&length), sizeof(length));
-        inputTextPath.resize(length);
-        in.read(&inputTextPath[0], length);
-    }
     void load_Text(std::string &text, std::string &textPath) {
         std::ifstream text_in(textPath);
         if (!text_in.is_open()) {
@@ -169,10 +163,9 @@ void tau_lambda_index::load_min_factors(std::string &mf_path) {
         return;
     }
 
-    load_rawText_path(in);
     std::string delimiters_tmp;
     size_t n;
-    in >> tau_l >> tau_u >> lambda >> delimiters_tmp >> n;
+    in >> inputTextPath >> tau_l >> tau_u >> lambda >> delimiters_tmp >> n;
     // for (auto c : tmp) { delimiters.insert(c); }
     while (n > 0) {
         size_t a, b;
@@ -246,6 +239,7 @@ void tau_lambda_index::serialize(std::ofstream &out) {
     size_t length = inputTextPath.size();
     out.write(reinterpret_cast<char*>(&length), sizeof(length));
     out.write(inputTextPath.data(), length);
+
     sdsl::write_member(index_type, out);
     sdsl::write_member(tau_l, out);
     sdsl::write_member(tau_u, out);
@@ -265,14 +259,17 @@ void tau_lambda_index::serialize(std::ofstream &out) {
 }
 
 void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
-    load_rawText_path(in);
+    size_t length;
+    in.read(reinterpret_cast<char*>(&length), sizeof(length));
+    inputTextPath.resize(length);
+    in.read(&inputTextPath[0], length);
     
     sdsl::read_member(index_type, in);
     sdsl::read_member(tau_l, in);
     sdsl::read_member(tau_u, in);
     sdsl::read_member(lambda, in);
     if (index_type == index_types::old_tau_lambda_type) {
-        load_Text(text, inputIndexPath);
+        load_Text(text, inputTextPath);
 
         old_tau_lambda = new Index(text);
         old_tau_lambda->load(in);

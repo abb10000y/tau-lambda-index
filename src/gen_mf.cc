@@ -43,6 +43,7 @@ int main(int argc, char* argv[]) {
         if (arr[i])
             std::cout << i << "\n";
     std::cout << "end\n";
+    std::cout << "delimiter: " << delimiter << "\n";
 
     k_factor_tree ksf(intputContent, lambda, tau_l, tau_u, delimiter);
     ksf.Serialize_min_factors(outputFile, inputTextPath);

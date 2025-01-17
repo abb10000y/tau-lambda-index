@@ -122,10 +122,7 @@ public:
 };
 
 void k_factor_tree::Serialize_min_factors (std::ostream &out, std::string &inputTextPath) {
-    size_t length = inputTextPath.size();
-    out.write(reinterpret_cast<char*>(&length), sizeof(length));
-    out.write(inputTextPath.data(), length);
-    out << "\n";
+    out << inputTextPath << "\n";
     out << tau_l << "\t" << tau_u << "\t" << lambda << "\t";
     out << delimiters_to_string() << "\t";
     out << min_factors.size() << "\n";
