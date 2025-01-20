@@ -99,41 +99,38 @@ private:
 };
 
 void tau_lambda_index::gen_masked_text(const std::string &text, std::string &masked_text) {
-    std::vector<std::pair<size_t, size_t>> masked_notations;
+    std::vector<std::pair<size_t, size_t>> covered_notations;
     size_t n = text.size();
     // mark which parts should be kept
     if (min_factors.size() > 0) {
         size_t start = 0, end = n - 1;
         if (std::get<1>(min_factors[0]) + 1 > lambda) { start = std::get<1>(min_factors[0]) + 1 - lambda; }
-        if (std::get<0>(min_factors[0]) + lambda - 1 < n) { end = std::get<0>(min_factors[0]) + lambda - 1; }
+        if (std::get<0>(min_factors[0]) + lambda < n + 1) { end = std::get<0>(min_factors[0]) + lambda - 1; }
         for (size_t i = 1, m = min_factors.size(); i < m; i++) {
             size_t next_start = 0, next_end = n - 1;
             if (std::get<1>(min_factors[i]) + 1 > lambda) { next_start = std::get<1>(min_factors[i]) + 1 - lambda; }
-            if (std::get<0>(min_factors[i]) + lambda - 1 < n) { next_end = std::get<0>(min_factors[i]) + lambda - 1; }
+            if (std::get<0>(min_factors[i]) + lambda < n + 1) { next_end = std::get<0>(min_factors[i]) + lambda - 1; }
             if (next_start <= end) { end = next_end; }
             else {
-                masked_notations.push_back({start, end});
+                covered_notations.push_back({start, end});
                 start = next_start;
                 end = next_end;
             }
         }
-        masked_notations.push_back({start, end});
+        covered_notations.push_back({start, end});
     }
 
     // calculate the masked_ratio, (# of masked characters) / |text|
     size_t cnt = 0;
-    for (auto v : masked_notations) {
+    for (auto v : covered_notations) {
         cnt += std::get<1>(v) - std::get<0>(v) + 1;
     }
     masked_ratio = 1.0 - 1.0 * cnt / n;
 
     // generate the masked text
     size_t masked_symbol = 255; // TODO: hard code
-    if (lambda == 0) { lambda = text.size(); }
-    if (masked_notations.size() == 0) { throw std::invalid_argument("masked_notations is empty"); } // TODO: if this necessary?
-
     masked_text.assign(n, masked_symbol);
-    for (auto v : masked_notations) {
+    for (auto v : covered_notations) {
         for (size_t i = std::get<0>(v); i <= std::get<1>(v); i++) {
             masked_text[i] = text[i];
         }
