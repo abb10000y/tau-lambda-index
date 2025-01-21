@@ -185,6 +185,7 @@ tau_lambda_index::tau_lambda_index(std::string &mf_path, index_types index_type)
         build_XBWT(text);
         std::string maskedTextPath = "tmpMaskedText", maskedText;
         gen_masked_text(text, maskedText);
+        if (index_type == index_types::LMS_type) { maskedText += '\0'; }
         output_Text(maskedText, maskedTextPath);
 
         // generate the self-index
@@ -195,7 +196,7 @@ tau_lambda_index::tau_lambda_index(std::string &mf_path, index_types index_type)
             r_index = new ri::r_index<>(input, true);
         } else if (index_type == index_types::LMS_type) {
             std::string LMSTemp = "/tmp"; // same as the default value, don't change
-            lms = lpg_index(inputTextPath, LMSTemp, 1, 0.5);
+            lms = lpg_index(maskedTextPath, LMSTemp, 1, 0.5);
         }
 
         if (std::remove(maskedTextPath.c_str()) != 0) {
