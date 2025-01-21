@@ -262,19 +262,24 @@ k_factor_tree::k_factor_tree(const std::string &text, size_t lambda, size_t tau_
     root->suffix_link = root;
     node_vector.push_back(root);
     size_t prev = 0, i = 0;
+    std::cout << "a\n";
     while (prev < n && i < n) {
         while (prev < n && delimiters.count(text[prev])) { prev++; }
         i = prev + 1;
         while (i < n && delimiters.count(text[prev]) == 0) { i++; }
-        if (prev < n) { insert(text, prev, i + 1, std::min(lambda, i - prev + 2)); }
+        if (prev < n) { insert(text, prev, i + 1, std::min(lambda, i - prev + 2)); } // insert the intervals [prev, i)
         prev = i + 1;
     }
+    std::cout << "b\n";
     // std::cout << "node_vector.size(): " << node_vector.size() << "\n";
     //t2 = std::chrono::steady_clock::now();
     dfs_preSum(root);
+    std::cout << "c\n";
     gen_failure_links(text);
+    std::cout << "d\n";
     //t3 = std::chrono::steady_clock::now();
     gen_mf(text, tau_l, tau_u);
+    std::cout << "e\n";
     //t4 = std::chrono::steady_clock::now();
     // gen_masked_notation(text, lambda); to be deleted
     //t5 = std::chrono::steady_clock::now();
