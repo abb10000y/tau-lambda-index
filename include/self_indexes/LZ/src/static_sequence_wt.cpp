@@ -2,7 +2,7 @@
 #include <iostream>
 namespace lz77index{
 
-static_sequence_wt::static_sequence_wt(unsigned char const* seq, unsigned int n, unsigned char sigma){
+static_sequence_wt::static_sequence_wt(unsigned int const* seq, unsigned int n, unsigned char sigma){
     if(sigma == 1)//this is to avoid border cases 
         sigma = 2;
 	root = new wt_int_node(seq, n, sigma, 0);

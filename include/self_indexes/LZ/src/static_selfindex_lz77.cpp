@@ -269,7 +269,7 @@ static_selfindex_lz77* static_selfindex_lz77::build(char* filename, char* filena
     //std::cout<<std::endl;
     delete [] length;
     delete [] start;
-    unsigned char* depth = utils_index::computeDepth(aux_phrases,len);
+    unsigned int* depth = utils_index::computeDepth(aux_phrases,len);
     /*for(unsigned int i=0;i<len;i++){
         depth[i] -= 1;
         //std::cout<<(unsigned int)depth[i]<<" ";

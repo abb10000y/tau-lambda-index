@@ -266,7 +266,7 @@ static_selfindex_lzend* static_selfindex_lzend::build(char* filename, char* file
     //std::cout<<std::endl;
     delete [] length;
     delete [] start;
-    unsigned char* depth = utils_index::computeDepth(aux_phrases,len);
+    unsigned int* depth = utils_index::computeDepth(aux_phrases,len);
 
     unsigned int sigma_d = *std::max_element(depth,depth+len)+1;
     std::cout<<"Sigma depth: "<<sigma_d<<std::endl;

@@ -8,7 +8,7 @@ typedef struct sPhrase{
     unsigned int id;
 }Phrase;
 //returns the depth array
-unsigned char* computeDepth(Phrase* phrases, unsigned int n);
+unsigned int* computeDepth(Phrase* phrases, unsigned int n);
 unsigned int* computeSourcesBitmap(Phrase* phrases, unsigned int n);
 unsigned int* computePermutationArray(Phrase* phrases, unsigned int n);
 

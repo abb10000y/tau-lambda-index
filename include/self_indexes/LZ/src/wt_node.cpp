@@ -23,7 +23,7 @@ wt_node* wt_node::load(FILE *fp) {
 /**************************************************/
 /* Int Node                ************************/
 /**************************************************/
-wt_int_node::wt_int_node(unsigned char const* seq, unsigned int n, unsigned char alphabet_size, unsigned char min_symbol){
+wt_int_node::wt_int_node(unsigned int const* seq, unsigned int n, unsigned char alphabet_size, unsigned char min_symbol){
 	unsigned int* bm = new unsigned int[n/32+1];
     bm[n/32] = 0;
     //for(int i=0;i<n/32+1;i++)bm[i] = 0;
@@ -42,8 +42,8 @@ wt_int_node::wt_int_node(unsigned char const* seq, unsigned int n, unsigned char
 	bitmap = new basics::static_bitsequence_brw32(bm,n,20);
     delete[] bm;
     /*compute left and right sequences*/
-	unsigned char* left_seq = new unsigned char[left_c];
-	unsigned char* right_seq = new unsigned char[n-left_c];
+	unsigned int* left_seq = new unsigned int[left_c];
+	unsigned int* right_seq = new unsigned int[n-left_c];
 	int lpos = 0;
 	int rpos = 0;
 	for(unsigned int i=0;i<n;i++){

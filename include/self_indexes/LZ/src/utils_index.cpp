@@ -76,8 +76,8 @@ bool comparePhrases(Phrase p1,Phrase p2){
 }
 
 //returns the maximum depth
-unsigned char* computeDepth(Phrase* phrases, unsigned int n){
-    unsigned char* depth =  new unsigned char[n];
+unsigned int* computeDepth(Phrase* phrases, unsigned int n){
+    unsigned int* depth =  new unsigned int[n];
     std::sort(phrases, phrases + n, comparePhrases);
     //calcula mal los depth
     /*std::stack<Phrase> stack = std::stack<Phrase>();

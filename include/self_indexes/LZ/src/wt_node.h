@@ -29,7 +29,7 @@ class wt_int_node:public wt_node{
 	    wt_node* left;
 	    wt_node* right;
 	public:
-	    wt_int_node(unsigned char const* seq, unsigned int n, unsigned char sigma, unsigned char min_symbol);
+	    wt_int_node(unsigned int const* seq, unsigned int n, unsigned char sigma, unsigned char min_symbol);
         wt_int_node();
 	    ~wt_int_node();
 	    unsigned int rank(unsigned char symbol, unsigned int pos, unsigned char alphabet_size) const;

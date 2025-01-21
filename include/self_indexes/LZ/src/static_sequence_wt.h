@@ -12,7 +12,7 @@ class static_sequence_wt{
         unsigned int length;
 	public:
 	    unsigned char alphabet_size;
-	    static_sequence_wt(unsigned char const* seq, unsigned int n, unsigned char sigma);
+	    static_sequence_wt(unsigned int const* seq, unsigned int n, unsigned char sigma);
         static_sequence_wt();
 	    ~static_sequence_wt();
 	    unsigned int rank(unsigned int symbol, unsigned int pos) const;
