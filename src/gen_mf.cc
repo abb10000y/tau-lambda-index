@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <map>
 #include "../include/k_factor_tree/k_factor_tree.h"
 
 int main(int argc, char* argv[]) {
@@ -35,13 +36,16 @@ int main(int argc, char* argv[]) {
     buffer << inputFile.rdbuf();
     std::string intputContent = buffer.str();
     
-    bool arr[256];
-    for (size_t i = 0; i < 256; i++) arr[i] = false;
-    for (char c : intputContent) { arr[c] = true; }
+    // bool arr[256];
+    std::map<size_t, size_t> mp;
+    // for (size_t i = 0; i < 256; i++) arr[i] = false;
+    for (char c : intputContent) { mp[c]++; }
     std::cout << "existing symbols:\n";
-    for (size_t i = 0; i < 256; i++)
-        if (arr[i])
-            std::cout << i << "\n";
+    for (auto kv : mp)
+        std::cout << kv.first << "\t" << kv.second << "\n";
+    // for (size_t i = 0; i < 256; i++)
+    //     if (arr[i])
+    //         std::cout << i << "\n";
     std::cout << "end\n";
     std::cout << "delimiter: " << delimiter << "\n";
 
