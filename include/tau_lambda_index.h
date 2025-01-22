@@ -140,7 +140,7 @@ void tau_lambda_index::gen_masked_text(const std::string &text, std::string &mas
 void tau_lambda_index::build_XBWT(const std::string &text) {
     std::vector<uint64_t> concated_mf; // each substring is separated by terminal_symbol (t_symbol)
     for (auto [b, e] : min_factors) {
-        for (size_t i = e; i >= b; i--) { concated_mf.push_back(text[i] + t_symbol); } // reverse insert
+        for (size_t i = e; i >= b; i--) { concated_mf.push_back(static_cast<unsigned char>(text[i]) + t_symbol); } // reverse insert
         concated_mf.push_back(t_symbol);
     }
     sdsl::int_vector<> concated_mf_int_vector;

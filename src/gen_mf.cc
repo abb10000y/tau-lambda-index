@@ -37,9 +37,13 @@ int main(int argc, char* argv[]) {
     std::string intputContent = buffer.str();
     
     // bool arr[256];
-    std::map<size_t, size_t> mp;
+    std::map<char, size_t> mp;
+    bool exist_0 = false;
     // for (size_t i = 0; i < 256; i++) arr[i] = false;
-    for (char c : intputContent) { mp[c]++; }
+    for (char c : intputContent) {
+        if (c == '\0') { exist_0 = true; }
+        mp[c]++;
+    }
     std::cout << "existing symbols:\n";
     for (auto kv : mp)
         std::cout << kv.first << "\t" << kv.second << "\n";
@@ -47,6 +51,7 @@ int main(int argc, char* argv[]) {
     //     if (arr[i])
     //         std::cout << i << "\n";
     std::cout << "end\n";
+    std::cout << "constains \\0?: " << exist_0 << "\n";
     std::cout << "delimiter: " << delimiter << "\n";
 
     k_factor_tree ksf(intputContent, lambda, tau_l, tau_u, delimiter);
