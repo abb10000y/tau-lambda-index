@@ -366,7 +366,7 @@ public:
 
 		ulint n_occ = R>=L ? (R-L)+1 : 0;
 
-		if(n_occ>=tau_l || n_occ>0){
+		if(n_occ>=tau_l){
 
 			OCC.push_back(k);
 
