@@ -53,14 +53,10 @@ set(LMS_Ref
 
 add_executable(gen_mf src/gen_mf.cc)
 add_executable(gen_index src/gen_index.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref})
+add_executable(gen_pattern src/gen_pattern.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref})
 add_executable(locate src/locate.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref})
 
-# 啟用測試
-enable_testing()
 
-# 設定 Google Test 的路徑
-set(GTEST_INCLUDE_DIR "/opt/homebrew/opt/googletest/include")
-set(GTEST_LIBRARY "/opt/homebrew/opt/googletest/lib")
 set(COMMON_LIBS 
     /usr/local/lib/libsdsl.a 
     /usr/local/lib/libdivsufsort.a 
@@ -71,8 +67,7 @@ set(COMMON_LIBS
 include_directories("/usr/local/include")
 include_directories("include/self_indexes/LMS-based-self-index-LPG_grid/include/lpg/sdsl-files")
 
-#include(include/self_indexes/r-index/CMakeLists.txt)
-
 link_directories("/usr/local/lib")
 target_link_libraries(gen_index ${COMMON_LIBS})
+target_link_libraries(gen_pattern ${COMMON_LIBS})
 target_link_libraries(locate ${COMMON_LIBS})

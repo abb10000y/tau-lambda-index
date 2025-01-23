@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <random>
 #include <exception>
 #include <unordered_set>
 #include <chrono>
@@ -34,6 +35,7 @@ enum class index_types {
 class tau_lambda_index {
 public:
     tau_lambda_index(){}
+    tau_lambda_index(std::string &mf_path);
     tau_lambda_index(std::string &mf_path, index_types index_type);
     tau_lambda_index(std::string &mf_path, std::string &index_path, index_types index_type);
     void serialize(std::ofstream &out);
@@ -53,6 +55,82 @@ public:
             out << "grammar_size: " << lms.grammar_tree.get_grammar_size() << "\n";
         }
         out << "masked_ratio: " << masked_ratio << "\n" ;
+    }
+    void gen_patterns(std::string &path, size_t cnt) {
+        std::ofstream out_with(path + "_with"), out_without(path + "_without");
+        out_with << "# number=" << cnt << " length=" << lambda << " file=" << inputTextPath << " forbidden=(not setting)\n";
+        out_without << "# number=" << cnt << " length=" << lambda << " file=" << inputTextPath << " forbidden=(not setting)\n";
+
+        std::vector<std::pair<size_t, size_t>> with_candidates, without_candidates;
+
+        size_t n = text.size();
+        // start point candidates for query patterns with min_factor
+        {
+            size_t s = min_factors[0].first, e = s;
+            // j-lambda+1>=0
+            if (min_factors[0].second + 1 >= lambda) { s = min_factors[0].second + 1 - lambda; }
+            for (auto [i, j] : min_factors) {
+                // j-lambda+1<=e+1
+                if (e + lambda >= j) { e = i; }
+                else {
+                    with_candidates.push_back({s, e});
+                    s = j + 1 - lambda;
+                    e = i;
+                }
+            }
+            with_candidates.push_back({s, e});
+        }
+        // start point candidates for query patterns without min_factor
+        {
+            size_t s = 0, idx = 0;
+            // e-lambda+1>=0
+            if (with_candidates[idx].first == 0) {
+                s = with_candidates[idx].second + 1;
+                idx++;
+            }
+            for (size_t end = with_candidates.size(); idx < end; idx++) {
+                auto [i, j] = with_candidates[idx];
+                // i-1 <= n-1
+                without_candidates.push_back({s, i - 1});
+                s = j + 1;
+            }
+            if (s < n) { without_candidates.push_back({s, n - 1}); }
+        }
+        
+        std::vector<bool> chk(n, false);
+        for (auto [i, j] : with_candidates)
+            for (size_t k = i; k <= j; k++)
+                chk[k] = true;
+        for (auto [i, j] : without_candidates)
+            for (size_t k = i; k <= j; k++)
+                if (chk[k] == true)
+                    std::cout << "error\n";
+        
+        // random setting
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        size_t n_with = with_candidates.size(), n_without = without_candidates.size();
+
+        // with min_factors
+        for (size_t i = 0; i < cnt; i++) {
+            std::uniform_int_distribution<> dis_a(0, n_with - 1);
+            size_t a = dis_a(gen), len = with_candidates[a].second - with_candidates[a].first + 1;
+            std::uniform_int_distribution<> dis_b(0, len - 1);
+            size_t b = dis_b(gen);
+            out_with << text.substr(with_candidates[a].first + b, lambda);
+        }
+
+        // without min_factors
+        for (size_t i = 0; i < cnt; i++) {
+            std::uniform_int_distribution<> dis_a(0, n_without - 1);
+            size_t a = dis_a(gen), len = without_candidates[a].second - without_candidates[a].first + 1;
+            std::uniform_int_distribution<> dis_b(0, len - 1);
+            size_t b = dis_b(gen);
+            out_without << text.substr(without_candidates[a].first + b, lambda);
+        }
+
+        out_with.close();
+        out_without.close();
     }
 
 private:
@@ -96,32 +174,37 @@ private:
         out << text;
         out.close();
     }
+
+    // for generating query patterns
+    void gen_covered_notations(std::vector<std::pair<size_t, size_t>> &covered_notations) {
+        size_t n = text.size();
+        // mark which parts should be kept
+        if (min_factors.size() > 0) {
+            size_t start = 0, end = n - 1;
+            if (std::get<1>(min_factors[0]) + 1 > lambda) { start = std::get<1>(min_factors[0]) + 1 - lambda; }
+            if (std::get<0>(min_factors[0]) + lambda < n + 1) { end = std::get<0>(min_factors[0]) + lambda - 1; }
+            for (size_t i = 1, m = min_factors.size(); i < m; i++) {
+                size_t next_start = 0, next_end = n - 1;
+                if (std::get<1>(min_factors[i]) + 1 > lambda) { next_start = std::get<1>(min_factors[i]) + 1 - lambda; }
+                if (std::get<0>(min_factors[i]) + lambda < n + 1) { next_end = std::get<0>(min_factors[i]) + lambda - 1; }
+                if (next_start <= end) { end = next_end; }
+                else {
+                    covered_notations.push_back({start, end});
+                    start = next_start;
+                    end = next_end;
+                }
+            }
+            covered_notations.push_back({start, end});
+        }
+    }
 };
 
 void tau_lambda_index::gen_masked_text(const std::string &text, std::string &masked_text) {
     std::vector<std::pair<size_t, size_t>> covered_notations;
-    size_t n = text.size();
-    // mark which parts should be kept
-    if (min_factors.size() > 0) {
-        size_t start = 0, end = n - 1;
-        if (std::get<1>(min_factors[0]) + 1 > lambda) { start = std::get<1>(min_factors[0]) + 1 - lambda; }
-        if (std::get<0>(min_factors[0]) + lambda < n + 1) { end = std::get<0>(min_factors[0]) + lambda - 1; }
-        for (size_t i = 1, m = min_factors.size(); i < m; i++) {
-            size_t next_start = 0, next_end = n - 1;
-            if (std::get<1>(min_factors[i]) + 1 > lambda) { next_start = std::get<1>(min_factors[i]) + 1 - lambda; }
-            if (std::get<0>(min_factors[i]) + lambda < n + 1) { next_end = std::get<0>(min_factors[i]) + lambda - 1; }
-            if (next_start <= end) { end = next_end; }
-            else {
-                covered_notations.push_back({start, end});
-                start = next_start;
-                end = next_end;
-            }
-        }
-        covered_notations.push_back({start, end});
-    }
+    gen_covered_notations(covered_notations);
 
     // calculate the masked_ratio, (# of masked characters) / |text|
-    size_t cnt = 0;
+    size_t cnt = 0, n = text.size();
     for (auto v : covered_notations) {
         cnt += std::get<1>(v) - std::get<0>(v) + 1;
     }
@@ -172,6 +255,12 @@ void tau_lambda_index::load_min_factors(std::string &mf_path) {
     }
 
     in.close();
+}
+
+// Constructor for generating query patterns
+tau_lambda_index::tau_lambda_index(std::string &mf_path) {
+    load_min_factors(mf_path);
+    load_Text(text, inputTextPath);
 }
 
 // Constructor for r-index, LMS and old-tau-lambda-index(DCC version)
@@ -294,7 +383,7 @@ std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
     sdsl::int_vector<> pattern_int;
     pattern_int.width(64);
     pattern_int.resize(pattern.size());
-    for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[pattern[i] + t_symbol]; }
+    for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[static_cast<unsigned char>(pattern[i]) + t_symbol]; }
     // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
     if (index_type == index_types::old_tau_lambda_type && pattern.length() <= lambda) {
         std::vector<size_t> tmp = old_tau_lambda->location_tree_search(pattern);

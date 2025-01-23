@@ -12,5 +12,8 @@ To gengerate the tau-lambda index of the text (need to gen the minimal factors f
     - 3: LMS
     - 4: DCC version
 
+To generate query patterns: (pattern length is equal to $\lambda$)
+./gen_pattern [input mf path] [output pattern path] [pattern counts]
+
 To do the locations queries:
 ./locate [input index path] [input pattern path] [output results path]

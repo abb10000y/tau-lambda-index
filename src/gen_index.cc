@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
 ;
     std::string inputMfPath = argv[1];
     std::string outputIndexPath = argv[2];
-    index_types index_type = static_cast<index_types>(std::stod(argv[3]));
+    index_types index_type = static_cast<index_types>(std::stoi(argv[3]));
     std::string outputLogPath;
     if (argc == 5) { outputLogPath = argv[4]; }
 
