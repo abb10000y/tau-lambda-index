@@ -97,14 +97,14 @@ public:
             if (s < n) { without_candidates.push_back({s, n - 1}); }
         }
         
-        std::vector<bool> chk(n, false);
-        for (auto [i, j] : with_candidates)
-            for (size_t k = i; k <= j; k++)
-                chk[k] = true;
-        for (auto [i, j] : without_candidates)
-            for (size_t k = i; k <= j; k++)
-                if (chk[k] == true)
-                    std::cout << "error\n";
+        // std::vector<bool> chk(n, false);
+        // for (auto [i, j] : with_candidates)
+        //     for (size_t k = i; k <= j; k++)
+        //         chk[k] = true;
+        // for (auto [i, j] : without_candidates)
+        //     for (size_t k = i; k <= j; k++)
+        //         if (chk[k] == true)
+        //             std::cout << "error\n";
         
         // random setting
         std::random_device rd;
