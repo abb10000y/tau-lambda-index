@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
                   << " [mf path] [output index path] [self-index type] [log path](optional)" << std::endl;
         return 1;
     }
-;
+
     std::string inputMfPath = argv[1];
     std::string outputIndexPath = argv[2];
     index_types index_type = static_cast<index_types>(std::stoi(argv[3]));

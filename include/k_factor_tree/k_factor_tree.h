@@ -19,7 +19,7 @@ using Node = k_factor_tree_node;
 private:
     Node *root;
     size_t lambda, tau_l, tau_u;
-    std::unordered_set<char> delimiters;
+    std::unordered_set<char> delimiters {'\0'};
     //std::string text;
     std::vector<Node*> node_vector; // debug only
     std::vector<std::pair<size_t, size_t>> min_factors;
@@ -246,45 +246,44 @@ size_t k_factor_tree::dfs_preSum(Node* node) {
 k_factor_tree::k_factor_tree(const std::string &text, size_t lambda, size_t tau_l, size_t tau_u, const std::string &delimiter): 
     lambda(lambda), tau_l(tau_l), tau_u(tau_u)
 {
-    //std::chrono::steady_clock::time_point t1, t2, t3, t4, t5;
-    //t1 = std::chrono::steady_clock::now();
+    if (tau_u > 0) {
+        delimiter_to_char(delimiter);
 
-    delimiter_to_char(delimiter);
+        if (lambda == 0) { lambda = text.size() + 1; }
+        else if (lambda == 1) { throw std::invalid_argument("lambda can't be 1"); } // for the gen_masked_notation(), but not sure if necessary
+        if (text.size() == 0) { throw std::invalid_argument("input text is empty"); }
+        if (delimiters.count(text[0])) { throw std::invalid_argument("input text start with delimiter symbol"); }
+        if (tau_l > tau_u) { throw std::invalid_argument("tau_l > tau_u"); }
 
-    if (lambda == 0) { lambda = text.size() + 1; }
-    else if (lambda == 1) { throw std::invalid_argument("lambda can't be 1"); } // for the gen_masked_notation(), but not sure if necessary
-    if (text.size() == 0) { throw std::invalid_argument("input text is empty"); }
-    if (delimiters.count(text[0])) { throw std::invalid_argument("input text start with delimiter symbol"); }
-    if (tau_l > tau_u) { throw std::invalid_argument("tau_l > tau_u"); }
-
-    size_t n = text.size();
-    root = new Node();
-    root->suffix_link = root;
-    node_vector.push_back(root);
-    size_t prev = 0, i = 0;
-    while (prev < n && i < n) {
-        while (prev < n && delimiters.count(text[prev])) { prev++; }
-        i = prev + 1;
-        while (i < n && delimiters.count(text[i]) == 0) { i++; }
-        if (prev < n) { insert(text, prev, i + 1, std::min(lambda, i - prev + 2)); } // insert the intervals [prev, i)
-        prev = i + 1;
+        size_t n = text.size();
+        root = new Node();
+        root->suffix_link = root;
+        node_vector.push_back(root);
+        size_t prev = 0, i = 0;
+        while (prev < n && i < n) {
+            while (prev < n && delimiters.count(text[prev])) { prev++; }
+            i = prev + 1;
+            while (i < n && delimiters.count(text[i]) == 0) { i++; }
+            if (prev < n) { insert(text, prev, i + 1, std::min(lambda, i - prev + 2)); } // insert the intervals [prev, i)
+            prev = i + 1;
+        }
+        // std::cout << "node_vector.size(): " << node_vector.size() << "\n";
+        //t2 = std::chrono::steady_clock::now();
+        dfs_preSum(root);
+        gen_failure_links(text);
+        //t3 = std::chrono::steady_clock::now();
+        gen_mf(text, tau_l, tau_u);
+        //t4 = std::chrono::steady_clock::now();
+        // gen_masked_notation(text, lambda); to be deleted
+        //t5 = std::chrono::steady_clock::now();
+        //std::string outputDir = "/mnt/f/alg/git/multi-layer-figiss/experiments/ksf_partition.txt";
+        //std::ofstream exp_results(outputDir, std::ios_base::app);
+        //exp_results << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "\t"; // "comsum time (ms): "
+        //exp_results << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count() << "\t"; // "comsum time (ms): "
+        //exp_results << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << "\t"; // "comsum time (ms): "
+        //exp_results << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count() << "\n"; // "comsum time (ms): "
+        //exp_results.close();
     }
-    // std::cout << "node_vector.size(): " << node_vector.size() << "\n";
-    //t2 = std::chrono::steady_clock::now();
-    dfs_preSum(root);
-    gen_failure_links(text);
-    //t3 = std::chrono::steady_clock::now();
-    gen_mf(text, tau_l, tau_u);
-    //t4 = std::chrono::steady_clock::now();
-    // gen_masked_notation(text, lambda); to be deleted
-    //t5 = std::chrono::steady_clock::now();
-    //std::string outputDir = "/mnt/f/alg/git/multi-layer-figiss/experiments/ksf_partition.txt";
-    //std::ofstream exp_results(outputDir, std::ios_base::app);
-    //exp_results << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "\t"; // "comsum time (ms): "
-    //exp_results << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count() << "\t"; // "comsum time (ms): "
-    //exp_results << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << "\t"; // "comsum time (ms): "
-    //exp_results << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count() << "\n"; // "comsum time (ms): "
-    //exp_results.close();
 }
 
 void k_factor_tree::insert(const std::string &text, size_t start, size_t end, size_t lambda) {

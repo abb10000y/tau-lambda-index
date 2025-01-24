@@ -153,7 +153,8 @@ private:
     void load_min_factors(std::string &mf_path);
     void build_XBWT(const std::string &text);
     void gen_masked_text(const std::string &text, std::string &masked_text);
-    std::vector<uint64_t> _locate(std::string &pattern);
+    void _locate(std::string &pattern, std::vector<uint64_t> &results);
+    void _locate_original_index(std::string &pattern, std::vector<uint64_t> &results);
     void load_Text(std::string &text, std::string &textPath) {
         std::ifstream text_in(textPath);
         if (!text_in.is_open()) {
@@ -200,40 +201,45 @@ private:
 };
 
 void tau_lambda_index::gen_masked_text(const std::string &text, std::string &masked_text) {
-    std::vector<std::pair<size_t, size_t>> covered_notations;
-    gen_covered_notations(covered_notations);
+    if (tau_u == 0) { masked_text = text; }
+    else {
+        std::vector<std::pair<size_t, size_t>> covered_notations;
+        gen_covered_notations(covered_notations);
 
-    // calculate the masked_ratio, (# of masked characters) / |text|
-    size_t cnt = 0, n = text.size();
-    for (auto v : covered_notations) {
-        cnt += std::get<1>(v) - std::get<0>(v) + 1;
-    }
-    masked_ratio = 1.0 - 1.0 * cnt / n;
+        // calculate the masked_ratio, (# of masked characters) / |text|
+        size_t cnt = 0, n = text.size();
+        for (auto v : covered_notations) {
+            cnt += std::get<1>(v) - std::get<0>(v) + 1;
+        }
+        masked_ratio = 1.0 - 1.0 * cnt / n;
 
-    // generate the masked text
-    size_t masked_symbol = 255; // TODO: hard code
-    masked_text.assign(n, masked_symbol);
-    for (auto v : covered_notations) {
-        for (size_t i = std::get<0>(v); i <= std::get<1>(v); i++) {
-            masked_text[i] = text[i];
+        // generate the masked text
+        size_t masked_symbol = 255; // TODO: hard code
+        masked_text.assign(n, masked_symbol);
+        for (auto v : covered_notations) {
+            for (size_t i = std::get<0>(v); i <= std::get<1>(v); i++) {
+                masked_text[i] = text[i];
+            }
         }
     }
 }
 
 void tau_lambda_index::build_XBWT(const std::string &text) {
-    std::vector<uint64_t> concated_mf; // each substring is separated by terminal_symbol (t_symbol)
-    for (auto [b, e] : min_factors) {
-        for (size_t i = e; i >= b; i--) { concated_mf.push_back(static_cast<unsigned char>(text[i]) + t_symbol); } // reverse insert
-        concated_mf.push_back(t_symbol);
+    if (tau_u > 0) {
+        std::vector<uint64_t> concated_mf; // each substring is separated by terminal_symbol (t_symbol)
+        for (auto [b, e] : min_factors) {
+            for (size_t i = e; i >= b; i--) { concated_mf.push_back(static_cast<unsigned char>(text[i]) + t_symbol); } // reverse insert
+            concated_mf.push_back(t_symbol);
+        }
+        sdsl::int_vector<> concated_mf_int_vector;
+        concated_mf_int_vector.width(64); // TODO: change to the smallest bits usage
+        concated_mf_int_vector.resize(concated_mf.size());
+        for (size_t i = 0; i < concated_mf.size(); i++) { concated_mf_int_vector[i] = concated_mf[i]; }
+        sdsl::append_zero_symbol(concated_mf_int_vector);
+        symbol_table_ = decltype(symbol_table_)(concated_mf_int_vector);
+        for (size_t i = 0; i < concated_mf_int_vector.size(); i++) { concated_mf_int_vector[i] = symbol_table_[concated_mf_int_vector[i]]; }
+        xbwt->insert(concated_mf_int_vector, symbol_table_.GetEffectiveAlphabetWidth(), symbol_table_.GetAlphabetSize());
     }
-    sdsl::int_vector<> concated_mf_int_vector;
-    concated_mf_int_vector.width(64); // TODO: change to the smallest bits usage
-    concated_mf_int_vector.resize(concated_mf.size());
-    for (size_t i = 0; i < concated_mf.size(); i++) { concated_mf_int_vector[i] = concated_mf[i]; }
-    sdsl::append_zero_symbol(concated_mf_int_vector);
-    symbol_table_ = decltype(symbol_table_)(concated_mf_int_vector);
-    for (size_t i = 0; i < concated_mf_int_vector.size(); i++) { concated_mf_int_vector[i] = symbol_table_[concated_mf_int_vector[i]]; }
-    xbwt->insert(concated_mf_int_vector, symbol_table_.GetEffectiveAlphabetWidth(), symbol_table_.GetAlphabetSize());
 }
 
 void tau_lambda_index::load_min_factors(std::string &mf_path) {
@@ -252,6 +258,10 @@ void tau_lambda_index::load_min_factors(std::string &mf_path) {
         in >> a >> b;
         min_factors.push_back({a, b});
         n--;
+    }
+
+    if (tau_u == 0 && index_type == index_types::old_tau_lambda_type) {
+        throw std::invalid_argument("old tau-lambda-index not support tau_u == 0 (original self-index)");
     }
 
     in.close();
@@ -335,8 +345,10 @@ void tau_lambda_index::serialize(std::ofstream &out) {
         old_tau_lambda->serialize(out);
     } else {
         sdsl::write_member(masked_ratio, out);
-        symbol_table_.Serialize(out);
-        xbwt->Serialize(out);
+        if (tau_u > 0) {
+            symbol_table_.Serialize(out);
+            xbwt->Serialize(out);
+        }
         if (index_type == index_types::r_index_type) {
             r_index->serialize(out);
         } else if (index_type == index_types::LMS_type) {
@@ -357,13 +369,14 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
     sdsl::read_member(lambda, in);
     if (index_type == index_types::old_tau_lambda_type) {
         load_Text(text, inputTextPath);
-
         old_tau_lambda = new Index(text);
         old_tau_lambda->load(in);
     } else {
         sdsl::read_member(masked_ratio, in);
-        symbol_table_.Load(in);
-        xbwt->Load(in);
+        if (tau_u > 0) {
+            symbol_table_.Load(in);
+            xbwt->Load(in);
+        }
         if (index_type == index_types::r_index_type) {
             r_index = new ri::r_index<>();
             r_index->load(in);
@@ -378,8 +391,8 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
     }
 }
 
-std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
-    vector<uint64_t> result;
+void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &results) {
+    results.clear();
     sdsl::int_vector<> pattern_int;
     pattern_int.width(64);
     pattern_int.resize(pattern.size());
@@ -387,35 +400,54 @@ std::vector<uint64_t> tau_lambda_index::_locate(std::string &pattern) {
     // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
     if (index_type == index_types::old_tau_lambda_type && pattern.length() <= lambda) {
         std::vector<size_t> tmp = old_tau_lambda->location_tree_search(pattern);
-        for (auto r : tmp) { result.push_back(r); }
+        for (auto r : tmp) { results.push_back(r); }
     } else {
         if (pattern.length() <= lambda && xbwt->match_if_exist(pattern_int)) {
             if (index_type == index_types::r_index_type) {
-                result = r_index->locate_all_tau(pattern, tau_l);
+                results = r_index->locate_all_tau(pattern, tau_l);
             } else if (index_type == index_types::lz77_type) {
-                unsigned char *p = new unsigned char[pattern.size() + 1]; // 分配記憶體（+1 用於結尾的 '\0'）
+                unsigned char *p = new unsigned char[pattern.size() + 1];
                 std::memcpy(p, pattern.c_str(), pattern.size() + 1);
                 unsigned int nooc;
                 std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc);
                 if (tmp->size() >= tau_l) {
-                    result.resize(tmp->size());
-                    for (size_t i = 0; i < tmp->size(); i++) { result[i] = static_cast<uint64_t>((*tmp)[i]); }
+                    results.resize(tmp->size());
+                    for (size_t i = 0; i < tmp->size(); i++) { results[i] = static_cast<uint64_t>((*tmp)[i]); }
                 }
             } else if (index_type == index_types::LMS_type) {
                 std::set<lpg_index::size_type> tmp;
                 lms.locate(pattern, tmp);
-                //result.resize(tmp.size());
                 if (tmp.size() >= tau_l) {
-                    size_t i = 0;
-                    //for (auto itr = tmp.begin(); itr != tmp.end(); itr++) { result[i] = *itr; }
-                    for (auto r : tmp) { result.push_back(r); }
+                    for (auto r : tmp) { results.push_back(r); }
                 }
             }
         }
     }
-
-    return result;
 }
+
+void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<uint64_t> &results) {
+    results.clear();
+    sdsl::int_vector<> pattern_int;
+    pattern_int.width(64);
+    pattern_int.resize(pattern.size());
+    for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[static_cast<unsigned char>(pattern[i]) + t_symbol]; }
+    
+    if (index_type == index_types::r_index_type) {
+        results = r_index->locate_all(pattern);
+    } else if (index_type == index_types::lz77_type) {
+        unsigned char *p = new unsigned char[pattern.size() + 1]; 
+        std::memcpy(p, pattern.c_str(), pattern.size() + 1);
+        unsigned int nooc;
+        std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc);
+        results.resize(tmp->size());
+        for (size_t i = 0; i < tmp->size(); i++) { results[i] = static_cast<uint64_t>((*tmp)[i]); }
+    } else if (index_type == index_types::LMS_type) {
+        std::set<lpg_index::size_type> tmp;
+        lms.locate(pattern, tmp);
+        for (auto r : tmp) { results.push_back(r); }
+    }
+}
+
 void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
     std::chrono::steady_clock::time_point t1, t2;
 
@@ -424,6 +456,7 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
 
 	size_t n = get_number_of_patterns(header);
 	size_t m = get_patterns_length(header);
+    size_t total_time = 0, total_cnt = 0;
 
     for (size_t i = 0; i < n; i++) {
         std::string pattern;
@@ -434,15 +467,30 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
 			pattern += c;
 		}
 
-        t1 = std::chrono::steady_clock::now();
-        std::vector<uint64_t> results = _locate(pattern);
-        t2 = std::chrono::steady_clock::now();
+        std::vector<uint64_t> results;
+        if (tau_u == 0) {
+            t1 = std::chrono::steady_clock::now();
+            _locate_original_index(pattern, results);
+            t2 = std::chrono::steady_clock::now();
+        } else {
+            t1 = std::chrono::steady_clock::now();
+            _locate(pattern, results);
+            t2 = std::chrono::steady_clock::now();
+        }
+        
         std::sort(results.begin(), results.end());
         out << "pattern [" << (i+1) << "] -- " << results.size() <<  " occurrences\n";
-        for (auto r : results) { out << r << "\t"; }
-        out << "\n";
-        out << "time consuming (us): " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << "\n";
+        if (results.size()) {
+            for (auto r : results) { out << r << "\t"; }
+            out << "\n";
+        }
+        out << "time consuming (us): " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << "\n\n";
+        total_time += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        total_cnt += results.size();
     }
+
+    if (total_cnt == 0) { total_cnt = 1; } // for patterns without min_factor -> total_cnt == 0
+    out << "time(us)/occ: " << (1.0 * total_time / total_cnt) << "\n";
 }
 
 // TO be deleted
