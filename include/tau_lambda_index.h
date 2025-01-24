@@ -41,8 +41,6 @@ public:
     void serialize(std::ofstream &out);
     void load(std::ifstream &in, std::string inputIndexPath);
     void locate(std::ifstream &in, std::ofstream &out);
-    bool locate_xbwt(std::string &pattern);
-    std::vector<ulint> locate_r_index(std::string &pattern);
     double get_masked_ratio() { return masked_ratio; }
     void log(std::ofstream& out) {
         out << "[" << inputTextPath << "]\n";
@@ -491,22 +489,4 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
 
     if (total_cnt == 0) { total_cnt = 1; } // for patterns without min_factor -> total_cnt == 0
     out << "time(us)/occ: " << (1.0 * total_time / total_cnt) << "\n";
-}
-
-// TO be deleted
-bool tau_lambda_index::locate_xbwt(std::string &pattern) {
-    sdsl::int_vector<> pattern_int;
-    pattern_int.width(64);
-    pattern_int.resize(pattern.size());
-    for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[pattern[i] + t_symbol]; }
-    // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
-        
-    return xbwt->match_if_exist(pattern_int);
-}
-
-// TO be deleted
-std::vector<ulint> tau_lambda_index::locate_r_index(std::string &pattern) {
-    // vector<ulint> result;
-    // result = r_index->locate_all_tau(pattern, tau_l, tau_u);
-    // return result;
 }
