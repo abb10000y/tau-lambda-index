@@ -56,8 +56,10 @@ public:
     }
     void gen_patterns(std::string &path, size_t cnt) {
         std::ofstream out_with(path + "_with"), out_without(path + "_without");
-        out_with << "# number=" << cnt << " length=" << lambda << " file=" << inputTextPath << " forbidden=(not setting)\n";
-        out_without << "# number=" << cnt << " length=" << lambda << " file=" << inputTextPath << " forbidden=(not setting)\n";
+        out_with << "# number=" << cnt << " length=" << lambda << " file=" << inputTextPath
+                 << " tau_l=" << tau_l << " tau_u=" << tau_u << " lambda=" << lambda << " \n";
+        out_without << "# number=" << cnt << " length=" << lambda << " file=" << inputTextPath
+                 << " tau_l=" << tau_l << " tau_u=" << tau_u << " lambda=" << lambda << " \n";
 
         std::vector<std::pair<size_t, size_t>> with_candidates, without_candidates;
 
@@ -195,6 +197,21 @@ private:
             }
             covered_notations.push_back({start, end});
         }
+    }
+    size_t get_pattern_info(std::string keyword, std::string &header) {      
+        ulint start_pos = header.find(keyword);
+        if (start_pos == std::string::npos or start_pos+keyword.size()>=header.size())
+            throw std::invalid_argument("Invalid query pattern format, can't find " + keyword + ". Please use gen_pattern to generate query patterns.");
+
+        start_pos += keyword.size();
+
+        ulint end_pos = header.substr(start_pos).find(" ");
+        if (end_pos == std::string::npos)
+            throw std::invalid_argument("Invalid query pattern format, can't find " + keyword + ". Please use gen_pattern to generate query patterns.");
+
+        ulint n = std::atoi(header.substr(start_pos).substr(0,end_pos).c_str());
+
+        return n;
     }
 };
 
@@ -402,7 +419,7 @@ void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &resu
     } else {
         if (pattern.length() <= lambda && xbwt->match_if_exist(pattern_int)) {
             if (index_type == index_types::r_index_type) {
-                results = r_index->locate_all_tau(pattern, tau_l);
+                results = r_index->locate_all_tau(pattern, tau_l, tau_u);
             } else if (index_type == index_types::lz77_type) {
                 unsigned char *p = new unsigned char[pattern.size() + 1];
                 std::memcpy(p, pattern.c_str(), pattern.size() + 1);
@@ -431,18 +448,22 @@ void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<
     for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[static_cast<unsigned char>(pattern[i]) + t_symbol]; }
     
     if (index_type == index_types::r_index_type) {
-        results = r_index->locate_all(pattern);
+        results = r_index->locate_all_tau(pattern, tau_l, tau_u);
     } else if (index_type == index_types::lz77_type) {
         unsigned char *p = new unsigned char[pattern.size() + 1]; 
         std::memcpy(p, pattern.c_str(), pattern.size() + 1);
         unsigned int nooc;
         std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc);
-        results.resize(tmp->size());
-        for (size_t i = 0; i < tmp->size(); i++) { results[i] = static_cast<uint64_t>((*tmp)[i]); }
+        if (tau_l <= tmp->size() && tmp->size() <= tau_u) {
+            results.resize(tmp->size());
+            for (size_t i = 0; i < tmp->size(); i++) { results[i] = static_cast<uint64_t>((*tmp)[i]); }
+        }
     } else if (index_type == index_types::LMS_type) {
         std::set<lpg_index::size_type> tmp;
         lms.locate(pattern, tmp);
-        for (auto r : tmp) { results.push_back(r); }
+        if (tau_l <= tmp.size() && tmp.size() <= tau_u) {
+            for (auto r : tmp) { results.push_back(r); }
+        }
     }
 }
 
@@ -452,8 +473,22 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
     std::string header;
 	std::getline(in, header);
 
-	size_t n = get_number_of_patterns(header);
-	size_t m = get_patterns_length(header);
+	// size_t n = get_number_of_patterns(header);
+	// size_t m = get_patterns_length(header);
+    size_t n = get_pattern_info("number=", header);
+    size_t m = get_pattern_info("length=", header);
+    if (tau_u == 0) { // using oringal index
+        tau_l = get_pattern_info("tau_l=", header);
+        tau_u = get_pattern_info("tau_u=", header);
+        lambda = get_pattern_info("lambda=", header);
+    } else if (tau_l != get_pattern_info("tau_l=", header) ||
+               tau_u != get_pattern_info("tau_u=", header) ||
+               lambda != get_pattern_info("lambda=", header)) {
+        std::cout << "tau_l: " << get_pattern_info("tau_l=", header) << std::endl;
+        std::cout << "tau_u: " << get_pattern_info("tau_u=", header) << std::endl;
+        std::cout << "lambda: " << get_pattern_info("lambda=", header) << std::endl;
+        throw std::invalid_argument("tau_l, tau_u, lambda setting mismatch between the index and query patterns");
+    }
     size_t total_time = 0, total_cnt = 0;
 
     for (size_t i = 0; i < n; i++) {

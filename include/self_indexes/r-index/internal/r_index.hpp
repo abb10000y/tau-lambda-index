@@ -354,7 +354,7 @@ public:
 
 	}
 
-	vector<ulint> locate_all_tau(string& P, size_t tau_l){
+	vector<ulint> locate_all_tau(string& P, size_t tau_l, size_t tau_u){
 
 		vector<ulint> OCC;
 
@@ -366,7 +366,7 @@ public:
 
 		ulint n_occ = R>=L ? (R-L)+1 : 0;
 
-		if(n_occ>=tau_l){
+		if(tau_l <= n_occ && n_occ <= tau_u){
 
 			OCC.push_back(k);
 
