@@ -194,6 +194,7 @@ void k_factor_tree::gen_mf(const std::string &text, size_t tau_l, size_t tau_u) 
             r -= node->get_length(0);
             node = node->parent->suffix_link;
             l++;
+            if (l > r) { r = l; }
             //std::cout << "a,";
         } else {
             // Node* next_node = node->suffix_link;
