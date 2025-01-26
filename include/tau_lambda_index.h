@@ -484,9 +484,6 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
     } else if (tau_l != get_pattern_info("tau_l=", header) ||
                tau_u != get_pattern_info("tau_u=", header) ||
                lambda != get_pattern_info("lambda=", header)) {
-        std::cout << "tau_l: " << get_pattern_info("tau_l=", header) << std::endl;
-        std::cout << "tau_u: " << get_pattern_info("tau_u=", header) << std::endl;
-        std::cout << "lambda: " << get_pattern_info("lambda=", header) << std::endl;
         throw std::invalid_argument("tau_l, tau_u, lambda setting mismatch between the index and query patterns");
     }
     size_t total_time = 0, total_cnt = 0;
@@ -522,6 +519,7 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
         total_cnt += results.size();
     }
 
-    if (total_cnt == 0) { total_cnt = 1; } // for patterns without min_factor -> total_cnt == 0
-    out << "time(us)/occ: " << (1.0 * total_time / total_cnt) << "\n";
+    // if (total_cnt == 0) { total_cnt = 1; } // for patterns without min_factor -> total_cnt == 0
+    out << "time(us): " << total_time << "\n";
+    out << "occ: " << total_cnt << "\n";
 }
