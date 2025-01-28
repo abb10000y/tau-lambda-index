@@ -143,6 +143,7 @@ private:
     std::vector<std::pair<size_t, size_t>> min_factors; // TODO: change to local variable?
     //std::unordered_set<char> delimiters; // TODO: no need?
     uint64_t t_symbol = static_cast<uint64_t>(1); // terminate symbols
+    bool is_original_index = false;
 
     // underlying_indexes
     ri::r_index<> *r_index;
@@ -216,7 +217,7 @@ private:
 };
 
 void tau_lambda_index::gen_masked_text(const std::string &text, std::string &masked_text) {
-    if (tau_u == 0) { masked_text = text; }
+    if (is_original_index) { masked_text = text; }
     else {
         std::vector<std::pair<size_t, size_t>> covered_notations;
         gen_covered_notations(covered_notations);
@@ -275,8 +276,10 @@ void tau_lambda_index::load_min_factors(std::string &mf_path) {
         n--;
     }
 
-    if (tau_u == 0 && index_type == index_types::old_tau_lambda_type) {
-        throw std::invalid_argument("old tau-lambda-index not support tau_u == 0 (original self-index)");
+    if (tau_u == 0) { is_original_index = true; }
+
+    if (is_original_index && index_type == index_types::old_tau_lambda_type) {
+        throw std::invalid_argument("old tau-lambda-index has no original self-index version");
     }
 
     in.close();
@@ -381,6 +384,7 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
     sdsl::read_member(index_type, in);
     sdsl::read_member(tau_l, in);
     sdsl::read_member(tau_u, in);
+    if (tau_u == 0) { is_original_index = true; }
     sdsl::read_member(lambda, in);
     if (index_type == index_types::old_tau_lambda_type) {
         load_Text(text, inputTextPath);
@@ -477,7 +481,7 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
 	// size_t m = get_patterns_length(header);
     size_t n = get_pattern_info("number=", header);
     size_t m = get_pattern_info("length=", header);
-    if (tau_u == 0) { // using oringal index
+    if (is_original_index) {
         tau_l = get_pattern_info("tau_l=", header);
         tau_u = get_pattern_info("tau_u=", header);
         lambda = get_pattern_info("lambda=", header);
@@ -498,7 +502,7 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
 		}
 
         std::vector<uint64_t> results;
-        if (tau_u == 0) {
+        if (is_original_index) {
             t1 = std::chrono::steady_clock::now();
             _locate_original_index(pattern, results);
             t2 = std::chrono::steady_clock::now();
