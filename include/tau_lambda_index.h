@@ -447,10 +447,10 @@ void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &resu
 
 void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<uint64_t> &results) {
     results.clear();
-    sdsl::int_vector<> pattern_int;
-    pattern_int.width(64);
-    pattern_int.resize(pattern.size());
-    for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[static_cast<unsigned char>(pattern[i]) + t_symbol]; }
+    // sdsl::int_vector<> pattern_int;
+    // pattern_int.width(64);
+    // pattern_int.resize(pattern.size());
+    // for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[static_cast<unsigned char>(pattern[i]) + t_symbol]; }
     
     if (index_type == index_types::r_index_type) {
         results = r_index->locate_all_tau(pattern, tau_l, tau_u);
