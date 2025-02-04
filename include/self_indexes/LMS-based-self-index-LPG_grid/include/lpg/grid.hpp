@@ -300,12 +300,13 @@ public:
     }
     size_type size_cols()const{ return sb.size();}
 
-    void search_2d(const query& q,std::vector<size_type>& R) const{
+    void search_2d(const query& q,std::vector<size_type>& R, size_t maxOcc = 0) const{
         size_t p1,p2;
         p1 = map(q.row1);
         p2 = map(q.row2+1)-1;
         if(p1 > p2) return;
         auto res = sb.range_search_2d2(p1,p2,q.col1,q.col2);
+        if (maxOcc > 0 && res.first > maxOcc) { return; }
         R.resize(res.first,0);
         for ( size_type i = 0; i < R.size(); i++ ){
             R[i] = res.second[i].second;
