@@ -465,7 +465,7 @@ void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<
         }
     } else if (index_type == index_types::LMS_type) {
         std::set<lpg_index::size_type> tmp;
-        lms.locate(pattern, tmp);
+        lms.locate(pattern, tmp, tau_u);
         if (tau_l <= tmp.size() && tmp.size() <= tau_u) {
             for (auto r : tmp) { results.push_back(r); }
         }
