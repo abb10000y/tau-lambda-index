@@ -662,7 +662,7 @@ public:
     //statistics about the text: number of symbols, number of documents, etc
     void text_stats(std::string &list) {}
 
-    void locate(const std::string &pattern, std::set<lpg_index::size_type> &pos) const;
+    void locate(const std::string &pattern, std::set<lpg_index::size_type> &pos, size_t maxOcc = 0) const;
     void locate_all_cuts(const std::string &pattern, std::set<lpg_index::size_type> &pos) const;
     void locate_split_time(const std::string &pattern, std::set<lpg_index::size_type> &pos, size_t&, size_t&) const;
     //extract text[start, end] from the index
@@ -1282,7 +1282,7 @@ public:
     }
 
 
-    void find_secondary_occ(const utils::primaryOcc &p_occ, std::set<size_type> &occ) const {
+    void find_secondary_occ(const utils::primaryOcc &p_occ, std::set<size_type> &occ, size_t maxOcc = 0) const {
 
         //queue for node processing
         std::deque<utils::primaryOcc> Q;
@@ -1342,6 +1342,7 @@ public:
 
             }
             Q.pop_front();
+            if (maxOcc > 0 && occ.size() > maxOcc) { return; }
         }
     }
 
@@ -1520,7 +1521,7 @@ void lpg_index::compute_grammar_sfx(
 
 
 
-void lpg_index::locate(const std::string &pattern, std::set<lpg_index::size_type> &pos)  const {
+void lpg_index::locate(const std::string &pattern, std::set<lpg_index::size_type> &pos, size_t maxOcc)  const {
 
     //get_cuts(pattern);
     //std::string test="AAGAAAGAAAGAAAGAAAGAAAGAAAGAAAAATACAAGGTTTGAGAGCCC";
@@ -1562,7 +1563,8 @@ void lpg_index::locate(const std::string &pattern, std::set<lpg_index::size_type
             grid_search(range, cut , pattern.size(), level, pOcc);
             // find secondary occ
             for (const auto &occ : pOcc) {
-                find_secondary_occ(occ,pos);
+                find_secondary_occ(occ, pos, maxOcc);
+                if (maxOcc > 0 && pos.size() > maxOcc) { return; }
             }
         }
     }

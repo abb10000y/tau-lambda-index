@@ -524,7 +524,8 @@ bool static_selfindex_lz77::_exist(unsigned char* pattern, unsigned int plen){
 std::vector<unsigned int>* static_selfindex_lz77::_locate(unsigned char* pattern, unsigned int plen, unsigned int* count, unsigned int max_occs){
     *count=0;
     std::vector<unsigned int>* occ_pos = new std::vector<unsigned int>();
-    _primaryOcc(pattern,plen,occ_pos,0);
+    // _primaryOcc(pattern,plen,occ_pos,0);
+    _primaryOcc(pattern,plen,occ_pos,max_occs);
     if(max_occs==0 || occ_pos->size()<max_occs){
         _secondaryOcc(plen,occ_pos,max_occs);   
     }
