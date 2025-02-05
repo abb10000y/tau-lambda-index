@@ -1240,10 +1240,10 @@ public:
 
 
     void grid_search(const grid_query &range, const uint64_t &pattern_off, const uint32_t &m, const uint32_t &level,
-                     std::vector<utils::primaryOcc> &occ, size_t maxOcc = 0) const {
+                     std::vector<utils::primaryOcc> &occ) const {
         std::vector<lpg_index::size_type> sfx;
 //        m_grid.search(range,level,sfx);
-        m_grid.search_2d(range, sfx, maxOcc);
+        m_grid.search_2d(range, sfx);
         occ.reserve(sfx.size());
         const auto &T = grammar_tree.getT();
 
@@ -1271,19 +1271,11 @@ public:
                 uint32_t pattern_tail = m - pattern_off;
                 while (end_node >= off + pattern_tail - 1 ) {
                     occ.emplace_back(parent, parent_preorder, parent_off, (off - parent_off) - pattern_off, true);
-                    if (maxOcc > 0 && occ.size() > maxOcc) {
-                        occ.clear();
-                        return;
-                    }
                     off += first_child_size ;
                 }
             } else {
                 size_type prefix_size = off - grammar_tree.offset_node(parent);
                 occ.emplace_back(parent, parent_preorder, parent_off, prefix_size - pattern_off, true);
-                if (maxOcc > 0 && occ.size() > maxOcc) {
-                    occ.clear();
-                    return;
-                }
             }
 
         }
@@ -1568,7 +1560,7 @@ void lpg_index::locate(const std::string &pattern, std::set<lpg_index::size_type
         if(res){
             std::vector<utils::primaryOcc> pOcc;
             // grid search
-            grid_search(range, cut , pattern.size(), level, pOcc, maxOcc);
+            grid_search(range, cut , pattern.size(), level, pOcc);
             // find secondary occ
             for (const auto &occ : pOcc) {
                 find_secondary_occ(occ, pos, maxOcc);
