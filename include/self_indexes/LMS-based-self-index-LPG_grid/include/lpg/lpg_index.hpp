@@ -1271,11 +1271,19 @@ public:
                 uint32_t pattern_tail = m - pattern_off;
                 while (end_node >= off + pattern_tail - 1 ) {
                     occ.emplace_back(parent, parent_preorder, parent_off, (off - parent_off) - pattern_off, true);
+                    if (maxOcc > 0 && occ.size() > maxOcc) {
+                        occ.clear();
+                        return;
+                    }
                     off += first_child_size ;
                 }
             } else {
                 size_type prefix_size = off - grammar_tree.offset_node(parent);
                 occ.emplace_back(parent, parent_preorder, parent_off, prefix_size - pattern_off, true);
+                if (maxOcc > 0 && occ.size() > maxOcc) {
+                    occ.clear();
+                    return;
+                }
             }
 
         }

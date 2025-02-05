@@ -306,8 +306,8 @@ public:
         p2 = map(q.row2+1)-1;
         if(p1 > p2) return;
         auto res = sb.range_search_2d2(p1,p2,q.col1,q.col2);
-        if (maxOcc > 0 && res.first > maxOcc) { return; }
         R.resize(res.first,0);
+        if (maxOcc > 0 && res.first > maxOcc) { R.clear(); }
         for ( size_type i = 0; i < R.size(); i++ ){
             R[i] = res.second[i].second;
         }
