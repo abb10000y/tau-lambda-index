@@ -546,6 +546,7 @@ void static_selfindex_lz77::_primaryOcc(unsigned char* pattern, unsigned int ple
     //special case: the pattern is completely contained in a phrase
     _computeSpecialOcc(opattern,rev_pattern,plen,occ_pos);
     if(max_occs>0 && occ_pos->size()>=max_occs){
+        occ_pos->clear();
         delete [] orevpattern;
         return;
     }
@@ -554,6 +555,7 @@ void static_selfindex_lz77::_primaryOcc(unsigned char* pattern, unsigned int ple
     for(unsigned int i=1;i<plen;i++){
         _computePrimaryOcc(opattern,rev_pattern,i,pattern,plen-i,occ_pos);
         if(max_occs>0 && occ_pos->size()>=max_occs){
+            occ_pos->clear();
             delete [] orevpattern;
             return;
         }
@@ -678,6 +680,7 @@ void static_selfindex_lz77::_secondaryOcc(unsigned int plen, std::vector<unsigne
     for(unsigned int i=0;i<occ_pos->size();i++){
         _computeSecondaryOcc((*occ_pos)[i],plen,occ_pos,max_occs);
         if(max_occs>0 && occ_pos->size()>=max_occs){
+            occ_pos->clear();
             return;
         }
     }

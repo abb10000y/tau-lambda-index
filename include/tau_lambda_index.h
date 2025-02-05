@@ -458,7 +458,7 @@ void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<
         unsigned char *p = new unsigned char[pattern.size() + 1]; 
         std::memcpy(p, pattern.c_str(), pattern.size() + 1);
         unsigned int nooc;
-        std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc, tau_u);
+        std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc, tau_u + 1);
         if (tau_l <= tmp->size() && tmp->size() <= tau_u) {
             results.resize(tmp->size());
             for (size_t i = 0; i < tmp->size(); i++) { results[i] = static_cast<uint64_t>((*tmp)[i]); }

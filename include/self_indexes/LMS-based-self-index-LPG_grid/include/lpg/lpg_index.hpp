@@ -1564,7 +1564,10 @@ void lpg_index::locate(const std::string &pattern, std::set<lpg_index::size_type
             // find secondary occ
             for (const auto &occ : pOcc) {
                 find_secondary_occ(occ, pos, maxOcc);
-                if (maxOcc > 0 && pos.size() > maxOcc) { return; }
+                if (maxOcc > 0 && pos.size() > maxOcc) {
+                    pos.clear();
+                    return;
+                }
             }
         }
     }
