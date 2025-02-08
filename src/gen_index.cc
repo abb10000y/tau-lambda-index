@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
     tau_lambda_index* idx;
     std::chrono::steady_clock::time_point t1, t2;
     t1 = std::chrono::steady_clock::now();
-    if (index_type == index_types::r_index_type || index_type == index_types::LMS_type || index_type == index_types::old_tau_lambda_type) {
+    if (index_type == index_types::r_index_type || index_type == index_types::LMS_type || index_type == index_types::old_tau_lambda_type || index_type == index_types::compact_suffix_trie) {
         idx = new tau_lambda_index(inputMfPath, index_type);
     } else if (index_type == index_types::lz77_type) {
         std::string lz77OutPath= outputIndexPath + "_lz77";

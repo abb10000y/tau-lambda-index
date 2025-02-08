@@ -24,12 +24,14 @@
 #include "self_indexes/LMS-based-self-index-LPG_grid/include/lpg/lpg_index.hpp"
 #include "self_indexes/LMS-based-self-index-LPG_grid/third-party/CLI11.hpp"
 #include "self_indexes/multi-layer-figiss/src/components/Index.h"
+#include "compact_suffix_trie.h"
 
 enum class index_types {
     r_index_type = 1,
     lz77_type = 2,
     LMS_type = 3,
-    old_tau_lambda_type = 4
+    old_tau_lambda_type = 4,
+    compact_suffix_trie = 5
 };
 
 class tau_lambda_index {
@@ -150,6 +152,7 @@ private:
     lz77index::static_selfindex_lz77* lz77;
     lpg_index lms;
     Index* old_tau_lambda;
+    compact_suffix_trie* location_trie;
 
     void load_min_factors(std::string &mf_path);
     void build_XBWT(const std::string &text);
@@ -299,6 +302,9 @@ tau_lambda_index::tau_lambda_index(std::string &mf_path, index_types index_type)
 
     if (index_type == index_types::old_tau_lambda_type) {
         old_tau_lambda = new Index(text, min_factors, tau_l, tau_u, lambda);
+    } else if (index_type == index_types::compact_suffix_trie) {
+        build_XBWT(text);
+        location_trie = new compact_suffix_trie(symbol_table_, xbwt, min_factors, text, lambda);
     } else {
         build_XBWT(text);
         std::string maskedTextPath = "tmpMaskedText", maskedText;
@@ -372,6 +378,8 @@ void tau_lambda_index::serialize(std::ofstream &out) {
             r_index->serialize(out);
         } else if (index_type == index_types::LMS_type) {
             lms.serialize(out, NULL, "");
+        } else if (index_type == index_types::compact_suffix_trie) {
+            location_trie->serialize(out);
         }
     }
 }
