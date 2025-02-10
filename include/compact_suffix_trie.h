@@ -12,7 +12,7 @@ private:
     // XBWT_location *xbwt_forw {new XBWT_location()}, *xbwt_reverse {new XBWT_location()};
     uint64_t t_symbol = static_cast<uint64_t>(1); // terminate symbols
     sdsl::int_vector<> AC_auto_leaves_offsets;
-    std::vector<XBWT_location*> xbwts_forw, xbwts_reverse;
+    std::vector<std::unique_ptr<XBWT_location>> xbwts_forw, xbwts_reverse;
     // sdsl::int_vector<> xbwt_forw_locations, xbwt_forw_leaf_offsets, xbwt_reverse_locations, xbwt_reverse_leaf_offsets;
 
     void build_forw_reverse_xbwts(SymbolTable &symbol_table_, XBWT* xbwt, std::vector<std::pair<size_t, size_t>> &min_factors, std::string &text, size_t lambda);
@@ -23,8 +23,8 @@ public:
     void serialize(std::ofstream &out) {
         AC_auto_leaves_offsets.serialize(out);
         sdsl::write_member(xbwts_forw.size(), out);
-        for (auto xbwt : xbwts_forw) { xbwt->Serialize(out); }
-        for (auto xbwt : xbwts_reverse) { xbwt->Serialize(out); }
+        for (auto &xbwt : xbwts_forw) { xbwt->Serialize(out); }
+        for (auto &xbwt : xbwts_reverse) { xbwt->Serialize(out); }
     }
 };
 
@@ -35,18 +35,22 @@ compact_suffix_trie::compact_suffix_trie(SymbolTable &symbol_table_, XBWT* xbwt,
 void compact_suffix_trie::build_forw_reverse_xbwts(SymbolTable &symbol_table_, XBWT* AC_auto, std::vector<std::pair<size_t, size_t>> &min_factors, std::string &text, size_t lambda) {
     size_t n = text.size(), leaf_cnt = AC_auto->getGrammarNumber();
     AC_auto_leaves_offsets.resize(leaf_cnt);
-    xbwts_forw = std::vector<XBWT_location*>(leaf_cnt, new XBWT_location());
-    xbwts_reverse = std::vector<XBWT_location*>(leaf_cnt, new XBWT_location());
+    xbwts_forw.resize(leaf_cnt);
+    xbwts_reverse.resize(leaf_cnt);
+    for (size_t i = 0; i < leaf_cnt; i++) {
+        xbwts_forw[i] = std::make_unique<XBWT_location>();
+        xbwts_reverse[i] = std::make_unique<XBWT_location>();
+    }
     
     // concatenated extended substrings and collect the locations (recording b of each minimal factor, [b, e])
     std::vector<std::vector<unsigned char>> strings_forw(leaf_cnt), strings_reverse(leaf_cnt);
     std::vector<std::vector<size_t>> locations_tmp(leaf_cnt);
-    
+
     for (auto [b, e] : min_factors) {
         sdsl::int_vector<> pattern_int;
         pattern_int.width(8);
         pattern_int.resize(e + 1 - b);
-        for (size_t i = b; i <= e; i++) { pattern_int[i] = symbol_table_[static_cast<unsigned char>(text[i]) + t_symbol]; }
+        for (size_t i = b, j = 0; i <= e; i++, j++) { pattern_int[j] = symbol_table_[static_cast<unsigned char>(text[i]) + t_symbol]; }
         size_t rank = AC_auto->match(pattern_int.begin(), pattern_int.end()) - 1; // shift to 0-index
 
         size_t forw_l = 0;
@@ -70,19 +74,19 @@ void compact_suffix_trie::build_forw_reverse_xbwts(SymbolTable &symbol_table_, X
         sdsl::int_vector<> forw_int_vector, reverse_int_vector;
         forw_int_vector.width(8); // TODO: change to the smallest bits usage
         forw_int_vector.resize(strings_forw[i].size());
-        for (size_t j = 0; j < strings_forw[i].size(); j++) { forw_int_vector[i] = strings_forw[i][j]; }
+        for (size_t j = 0; j < strings_forw[i].size(); j++) { forw_int_vector[j] = static_cast<int>(strings_forw[i][j]); }
         sdsl::append_zero_symbol(forw_int_vector);
         xbwts_forw[i]->insert(forw_int_vector, symbol_table_.GetEffectiveAlphabetWidth(), symbol_table_.GetAlphabetSize());
         reverse_int_vector.width(8); // TODO: change to the smallest bits usage
         reverse_int_vector.resize(strings_reverse[i].size());
-        for (size_t j = 0; j < strings_reverse[i].size(); j++) { reverse_int_vector[i] = strings_reverse[i][j]; }
+        for (size_t j = 0; j < strings_reverse[i].size(); j++) { reverse_int_vector[j] = strings_reverse[i][j]; }
         sdsl::append_zero_symbol(reverse_int_vector);
         xbwts_reverse[i]->insert(reverse_int_vector, symbol_table_.GetEffectiveAlphabetWidth(), symbol_table_.GetAlphabetSize());
     }
 
     // locations corresponding to each xbwt
     //  [b_forw, e_forw) is the text to be matched (text[e_forw] == t_symbol)
-    for (size_t i = 0, cnt = 0, b_forw = 0, e_forw = 0, b_rev = 0, transformed_t_symbol = symbol_table_[t_symbol], e_rev = 0; i < leaf_cnt; i++) {
+    for (size_t i = 0, cnt = 0, transformed_t_symbol = symbol_table_[t_symbol]; i < leaf_cnt; i++) {
         AC_auto_leaves_offsets[i] = cnt;
         cnt += locations_tmp[i].size();
 
@@ -90,16 +94,16 @@ void compact_suffix_trie::build_forw_reverse_xbwts(SymbolTable &symbol_table_, X
         size_t xbwt_leaves_cnt = xbwts_forw[i]->getGrammarNumber();
         std::vector<std::vector<size_t>> xbwt_forw_locations_tmp (xbwt_leaves_cnt), xbwt_reverse_locations_tmp (xbwt_leaves_cnt);;
         std::vector<size_t> xbwt_forw_leaf_offsets_tmp (xbwt_leaves_cnt), xbwt_reverse_leaf_offsets_tmp (xbwt_leaves_cnt);
-        size_t idx_forw = 0, idx_rev = 0;
-        
+        size_t idx_forw = 0, idx_rev = 0, b_forw = 0, e_forw = 0, b_rev = 0, e_rev = 0;
+
         // forward
-        while (e_forw < n) {
+        while (e_forw < strings_forw[i].size()) {
             while (strings_forw[i][e_forw] != transformed_t_symbol) { e_forw++; }
             sdsl::int_vector<> pattern_forw;
             pattern_forw.width(8);
-            pattern_forw.resize(e_forw - b_forw + 1);
-            for (size_t j = b_forw, k = pattern_forw.size(); j < e_forw; j++, k--) {
-                pattern_forw[k] = strings_forw[i][j];
+            pattern_forw.resize(e_forw - b_forw);
+            for (size_t j = b_forw, k = pattern_forw.size() - 1; j < e_forw; j++, k--) {
+                pattern_forw[k] = static_cast<int>(strings_forw[i][j]);
             }
             size_t rank = xbwts_forw[i]->match(pattern_forw.begin(), pattern_forw.end()) - 1; // shift to 0-index
             xbwt_forw_locations_tmp[rank].push_back(locations_tmp[i][idx_forw]);
@@ -114,13 +118,13 @@ void compact_suffix_trie::build_forw_reverse_xbwts(SymbolTable &symbol_table_, X
         xbwts_forw[i]->insert_locations(xbwt_forw_locations_tmp, locations_tmp.size());
 
         // reverse
-        while (e_rev < n) {
+        while (e_rev < strings_reverse[i].size()) {
             while (strings_reverse[i][e_rev] != transformed_t_symbol) { e_rev++; }
             sdsl::int_vector<> pattern_reverse;
             pattern_reverse.width(8);
-            pattern_reverse.resize(e_rev - b_rev + 1);
-            for (size_t j = b_rev, k = pattern_reverse.size(); j < e_rev; j++, k--) {
-                pattern_reverse[k] = strings_reverse[i][j];
+            pattern_reverse.resize(e_rev - b_rev);
+            for (size_t j = b_rev, k = pattern_reverse.size() - 1; j < e_rev; j++, k--) {
+                pattern_reverse[k] = static_cast<int>(strings_reverse[i][j]);
             }
             size_t rank = xbwts_reverse[i]->match(pattern_reverse.begin(), pattern_reverse.end()) - 1; // shift to 0-index
             xbwt_reverse_locations_tmp[rank].push_back(locations_tmp[i][idx_rev]);
@@ -132,6 +136,7 @@ void compact_suffix_trie::build_forw_reverse_xbwts(SymbolTable &symbol_table_, X
             xbwt_reverse_leaf_offsets_tmp[j] = cnt;
             cnt += xbwt_reverse_locations_tmp[j].size();
         }
+        xbwts_reverse[i]->insert_locations(xbwt_reverse_locations_tmp, locations_tmp.size());
     }
 }
 

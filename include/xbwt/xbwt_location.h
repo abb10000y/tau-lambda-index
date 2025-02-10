@@ -596,7 +596,7 @@ std::ostream& operator<< (std::ostream &out, XBWT_location const &xbwt) {
                 xbwt.UpwardNavigation(l, r);
             }
         }
-        out << "\n";
+        out << std::endl;
     }
     return out;
 }
