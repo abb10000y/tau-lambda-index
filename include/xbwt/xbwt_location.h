@@ -39,13 +39,14 @@ private:
     SymbolBucketOffsets C;
     uint64_t alphabet_size;
     uint64_t t_offset = static_cast<uint64_t>(1); // terminate symbols
-    sdsl::sd_vector<> singleCharRunCnt_bits;
-    sdsl::sd_vector<>::select_1_type singleCharRunCnt;
-    sdsl::sd_vector<> subFactorCnt_bits;
-    sdsl::sd_vector<>::select_1_type subFactorCnt;
+    // sdsl::sd_vector<> singleCharRunCnt_bits;
+    // sdsl::sd_vector<>::select_1_type singleCharRunCnt;
+    // sdsl::sd_vector<> subFactorCnt_bits;
+    // sdsl::sd_vector<>::select_1_type subFactorCnt;
 
     sdsl::int_vector<> locations, locations_offset, locations_length, next_leaf_rank; // leaves (rank only consider t_symbol)
     sdsl::int_vector<> leftest_child_rank, rightest_child_rank; // internal nodes (rank exclude t_symbol)
+    SymbolTable symbol_table_;
 
     bool DownwardNavigation(xbwt_range& L_range, size_t c) const; // return found or not
     bool UpwardNavigation(size_t& l, size_t& r) const; // return found or not
@@ -69,7 +70,7 @@ public:
     XBWT_location();
     ~XBWT_location(){};
 
-    void insert(sdsl::int_vector<>& text, uint64_t effective_alphabet_width, uint64_t effective_alphabet_size);
+    void insert(sdsl::int_vector<> text);
     uint64_t match(sdsl::int_vector<>::iterator text_begin, sdsl::int_vector<>::iterator text_end);
     uint64_t nodeHeight(size_t l, size_t r);
     std::pair<size_t, size_t> match_pos_in_pattern(const sdsl::int_vector<>& pattern);
@@ -100,16 +101,16 @@ public:
     uint64_t getGrammarNumber() { return L.rank(L.size(), 1); }
     uint16_t getAlphabetCnt(uint64_t c) { return C[c+1] - C[c]; }
     void getPiPath(size_t i, sdsl::int_vector<>& path) const; // node-to-root path for the i-th '$'
-    template <typename Iterator, typename Range>
-    void suffixRangeQuery(Iterator rbegin, Iterator rend, Range &grammar_range, SymbolTable& runLength_symbol_table, uint64_t maxRunLength);
-    template <typename Iterator, typename Range>
-    void prefixRangeQuery(Iterator begin, Iterator end, Range &grammar_range, SymbolTable& runLength_symbol_table, uint64_t maxRunLength);
-    template <typename Iterator>
-    uint64_t infixMatch(Iterator begin, Iterator end); // assume the input is in lex-order
-    void gen_subFactorCnt(sdsl::int_vector<> &lex_sl_rl_int_text, SymbolTable &symbol_table, uint64_t maxRunLength);
-    template <typename Iterator>
-    uint64_t subFactorSuffixRangeQuery(Iterator rbegin, Iterator rend, SymbolTable& runLength_symbol_table, uint64_t maxRunLength);
-    void singleCharacterRunQuery(uint64_t rl_int_symbol, SymbolTable& runLength_symbol_table, std::pair<uint64_t, uint64_t> &result, uint64_t maxRunLength); // {cnt, len}
+    // template <typename Iterator, typename Range>
+    // void suffixRangeQuery(Iterator rbegin, Iterator rend, Range &grammar_range, SymbolTable& runLength_symbol_table, uint64_t maxRunLength);
+    // template <typename Iterator, typename Range>
+    // void prefixRangeQuery(Iterator begin, Iterator end, Range &grammar_range, SymbolTable& runLength_symbol_table, uint64_t maxRunLength);
+    // template <typename Iterator>
+    // uint64_t infixMatch(Iterator begin, Iterator end); // assume the input is in lex-order
+    // void gen_subFactorCnt(sdsl::int_vector<> &lex_sl_rl_int_text, SymbolTable &symbol_table, uint64_t maxRunLength);
+    // template <typename Iterator>
+    // uint64_t subFactorSuffixRangeQuery(Iterator rbegin, Iterator rend, SymbolTable& runLength_symbol_table, uint64_t maxRunLength);
+    // void singleCharacterRunQuery(uint64_t rl_int_symbol, SymbolTable& runLength_symbol_table, std::pair<uint64_t, uint64_t> &result, uint64_t maxRunLength); // {cnt, len}
     friend std::ostream& operator<< (std::ostream &out, XBWT_location const &xbwt);
     void insert_locations(std::vector<std::vector<size_t>> &locations_tmp, size_t locations_cnt);
 };
@@ -189,20 +190,15 @@ void XBWT_location::processTime(std::chrono::steady_clock::time_point &t1, std::
 }
 */
 
-void XBWT_location::insert(sdsl::int_vector<>& text, uint64_t effective_alphabet_width, uint64_t effective_alphabet_size) {
-    std::chrono::steady_clock::time_point t1, t2;
-    t1 = std::chrono::steady_clock::now();
-
-    alphabet_size = effective_alphabet_size;
+void XBWT_location::insert(sdsl::int_vector<> text) {
     // appending '0' to text is necessary for the s.sort(), however we don't want '0' appearing in xbwt
     // hence we will skip 'the 1st element in sa' and 'the last element in text'
     if (text[text.size()-1] != 0) { sdsl::append_zero_symbol(text); }
-//processTime(t1, t2, "chk7_0: ");
+    symbol_table_ = decltype(symbol_table_)(text);
+    for (size_t i = 0; i < text.size(); i++) { text[i] = symbol_table_[text[i]]; }
+    alphabet_size = symbol_table_.GetAlphabetSize();
     sdsl::int_vector<> sa;
-    // sdsl::qsufsort::sorter<sdsl::int_vector<>> s;
-    // s.sort(sa, text);
     sdsl::qsufsort::construct_sa(sa, text);
-//processTime(t1, t2, "chk7_1: ");
 
     // MR, modified Kasai alg.
     std::vector<size_t> RCP;
@@ -302,7 +298,7 @@ void XBWT_location::insert(sdsl::int_vector<>& text, uint64_t effective_alphabet
 //processTime(t1, t2, "chk7_4: ");
 
     sdsl::int_vector<> L_buffer;
-    L_buffer.width(effective_alphabet_width);
+    L_buffer.width(symbol_table_.GetEffectiveAlphabetWidth());
     L_buffer.resize(L_vector.size());
     for (size_t i = 0; i < L_vector.size(); i++) L_buffer[i] = L_vector[i];
     sdsl::construct_im(L, L_buffer);
@@ -325,51 +321,51 @@ void XBWT_location::insert(sdsl::int_vector<>& text, uint64_t effective_alphabet
 //processTime(t1, t2, "chk7_7: ");
 }
 
-void XBWT_location::gen_subFactorCnt(sdsl::int_vector<> &lex_sl_rl_int_text, SymbolTable &symbol_table, uint64_t maxRunLength) {
-    sdsl::int_vector<> subFactorCnt_bits_tmp(last_rank(last.size()), 0);
-    sdsl::int_vector<> singleCharRunCnt_bits_tmp(last_rank(last.size()), 0);
-    auto rbegin {std::prev(lex_sl_rl_int_text.end(), 3)}; // skipping the last '1''0'
-    auto rend {std::prev(lex_sl_rl_int_text.begin())};
-    auto rfirst {rbegin};
-    auto rlast {rfirst};
-    while (rlast != rend) {
-        while (rlast != rend && *rlast != t_offset) { rlast = std::prev(rlast); }
-        auto it {rfirst};
-        // match function from right to left
-        xbwt_range L_range = {0, last_select(1) + 1};
-        while (it != rlast) {
-            size_t c = *it--;
-            if (!DownwardNavigation(L_range, c)) {
-                throw std::runtime_error("matching in gen_subFactorCnt() should never fail");
-            }
-            subFactorCnt_bits_tmp[last_rank(std::get<1>(L_range)) - 1] += 1; // -1 for 0-index
-            singleCharRunCnt_bits_tmp[last_rank(std::get<1>(L_range)) - 1] += 1; // -1 for 0-index
-        }
-        if (rlast != rend) {
-            rlast = std::prev(rlast);
-            rfirst = rlast;
-        }
-    }
-    //std::cout << "symbol_table: " << symbol_table << "\n";
-    for (size_t i = 2; i < alphabet_size; i++) {
-        size_t mul = symbol_table.get_run_length(i, maxRunLength);
-        size_t begin = C[i] - C[2] + 1, end = C[i+1] - C[2] + 1;
-        for (size_t j = begin; j < end; j++) {
-            singleCharRunCnt_bits_tmp[j] = mul * singleCharRunCnt_bits_tmp[j];
-        }
-    }
-    for (size_t i = 1; i < subFactorCnt_bits_tmp.size(); i++) {
-        subFactorCnt_bits_tmp[i] += subFactorCnt_bits_tmp[i-1];
-        singleCharRunCnt_bits_tmp[i] += singleCharRunCnt_bits_tmp[i-1];
-    }
-    //std::cout << "lex_sl_rl_int_text: " << lex_sl_rl_int_text << "\n";
-    //std::cout << "subFactorCnt_bits_tmp: " << subFactorCnt_bits_tmp << "\n";
-    //std::cout << "singleCharRunCnt_bits_tmp: " << singleCharRunCnt_bits_tmp << "\n";
-    subFactorCnt_bits = decltype(subFactorCnt_bits)(std::begin(subFactorCnt_bits_tmp), std::end(subFactorCnt_bits_tmp));
-    subFactorCnt.set_vector(&subFactorCnt_bits);
-    singleCharRunCnt_bits = decltype(singleCharRunCnt_bits)(std::begin(singleCharRunCnt_bits_tmp), std::end(singleCharRunCnt_bits_tmp));
-    singleCharRunCnt.set_vector(&singleCharRunCnt_bits);
-}
+// void XBWT_location::gen_subFactorCnt(sdsl::int_vector<> &lex_sl_rl_int_text, SymbolTable &symbol_table, uint64_t maxRunLength) {
+//     sdsl::int_vector<> subFactorCnt_bits_tmp(last_rank(last.size()), 0);
+//     sdsl::int_vector<> singleCharRunCnt_bits_tmp(last_rank(last.size()), 0);
+//     auto rbegin {std::prev(lex_sl_rl_int_text.end(), 3)}; // skipping the last '1''0'
+//     auto rend {std::prev(lex_sl_rl_int_text.begin())};
+//     auto rfirst {rbegin};
+//     auto rlast {rfirst};
+//     while (rlast != rend) {
+//         while (rlast != rend && *rlast != t_offset) { rlast = std::prev(rlast); }
+//         auto it {rfirst};
+//         // match function from right to left
+//         xbwt_range L_range = {0, last_select(1) + 1};
+//         while (it != rlast) {
+//             size_t c = *it--;
+//             if (!DownwardNavigation(L_range, c)) {
+//                 throw std::runtime_error("matching in gen_subFactorCnt() should never fail");
+//             }
+//             subFactorCnt_bits_tmp[last_rank(std::get<1>(L_range)) - 1] += 1; // -1 for 0-index
+//             singleCharRunCnt_bits_tmp[last_rank(std::get<1>(L_range)) - 1] += 1; // -1 for 0-index
+//         }
+//         if (rlast != rend) {
+//             rlast = std::prev(rlast);
+//             rfirst = rlast;
+//         }
+//     }
+//     //std::cout << "symbol_table: " << symbol_table << "\n";
+//     for (size_t i = 2; i < alphabet_size; i++) {
+//         size_t mul = symbol_table.get_run_length(i, maxRunLength);
+//         size_t begin = C[i] - C[2] + 1, end = C[i+1] - C[2] + 1;
+//         for (size_t j = begin; j < end; j++) {
+//             singleCharRunCnt_bits_tmp[j] = mul * singleCharRunCnt_bits_tmp[j];
+//         }
+//     }
+//     for (size_t i = 1; i < subFactorCnt_bits_tmp.size(); i++) {
+//         subFactorCnt_bits_tmp[i] += subFactorCnt_bits_tmp[i-1];
+//         singleCharRunCnt_bits_tmp[i] += singleCharRunCnt_bits_tmp[i-1];
+//     }
+//     //std::cout << "lex_sl_rl_int_text: " << lex_sl_rl_int_text << "\n";
+//     //std::cout << "subFactorCnt_bits_tmp: " << subFactorCnt_bits_tmp << "\n";
+//     //std::cout << "singleCharRunCnt_bits_tmp: " << singleCharRunCnt_bits_tmp << "\n";
+//     subFactorCnt_bits = decltype(subFactorCnt_bits)(std::begin(subFactorCnt_bits_tmp), std::end(subFactorCnt_bits_tmp));
+//     subFactorCnt.set_vector(&subFactorCnt_bits);
+//     singleCharRunCnt_bits = decltype(singleCharRunCnt_bits)(std::begin(singleCharRunCnt_bits_tmp), std::end(singleCharRunCnt_bits_tmp));
+//     singleCharRunCnt.set_vector(&singleCharRunCnt_bits);
+// }
 
 void XBWT_location::Serialize(std::ostream &out) {
     sdsl::write_member(alphabet_size, out);
@@ -380,15 +376,16 @@ void XBWT_location::Serialize(std::ostream &out) {
     last_rank.serialize(out);
     last_select.serialize(out);
     C.Serialize(out);
-    subFactorCnt_bits.serialize(out);
-    subFactorCnt.serialize(out);
-    singleCharRunCnt_bits.serialize(out);
-    singleCharRunCnt.serialize(out);
+    // subFactorCnt_bits.serialize(out);
+    // subFactorCnt.serialize(out);
+    // singleCharRunCnt_bits.serialize(out);
+    // singleCharRunCnt.serialize(out);
     locations_offset.serialize(out);
     locations_length.serialize(out);
     next_leaf_rank.serialize(out);
     leftest_child_rank.serialize(out);
     rightest_child_rank.serialize(out);
+    symbol_table_.Serialize(out);
 }
 
 void XBWT_location::Load(std::istream &in) {
@@ -400,15 +397,16 @@ void XBWT_location::Load(std::istream &in) {
     last_rank.load(in, &last);
     last_select.load(in, &last);
     C.Load(in);
-    subFactorCnt_bits.load(in);
-    subFactorCnt.load(in, &subFactorCnt_bits);
-    singleCharRunCnt_bits.load(in);
-    singleCharRunCnt.load(in, &singleCharRunCnt_bits);
+    // subFactorCnt_bits.load(in);
+    // subFactorCnt.load(in, &subFactorCnt_bits);
+    // singleCharRunCnt_bits.load(in);
+    // singleCharRunCnt.load(in, &singleCharRunCnt_bits);
     locations_offset.load(in);
     locations_length.load(in);
     next_leaf_rank.load(in);
     leftest_child_rank.load(in);
     rightest_child_rank.load(in);
+    symbol_table_.Load(in);
 }
 
 // match [begin, ..., end)
@@ -416,7 +414,7 @@ uint64_t XBWT_location::match(sdsl::int_vector<>::iterator text_begin, sdsl::int
     if (last_rank(last_rank.size()) == 0) return 0; // empty
     xbwt_range L_range = {0, last_select(1) + 1};
     while (text_begin != text_end) {
-        size_t c = *text_begin++;
+        size_t c = symbol_table_[*text_begin++]; ;
         if (!DownwardNavigation(L_range, c)) { return 0; }
     }
     size_t grammar_below_l = L.rank(std::get<0>(L_range), t_offset);
@@ -467,119 +465,119 @@ void XBWT_location::getPiPath(size_t i, sdsl::int_vector<>& path) const {
     }
 }
 
-void XBWT_location::singleCharacterRunQuery(uint64_t rl_int_symbol, SymbolTable& runLength_symbol_table, std::pair<uint64_t, uint64_t> &result, uint64_t maxRunLength) {
-    uint64_t l_rl_int_symbol = rl_int_symbol, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
-    xbwt_range pi_range = {
-        C[l_rl_int_symbol] - C[2] + 1,
-        C[r_rl_int_symbol] - C[2] + 1
-    };
-    // std::cout << "l/r_rl_int_symbol: " << l_rl_int_symbol << ", " << r_rl_int_symbol << "\n";
-    // std::cout << "pi_range: " << std::get<0>(pi_range) << ", " << std::get<1>(pi_range) << "\n";
-    // {cnt * len, cnt}
-    result = {
-        singleCharRunCnt(std::get<1>(pi_range)) - singleCharRunCnt(std::get<0>(pi_range)),
-        subFactorCnt(std::get<1>(pi_range)) - subFactorCnt(std::get<0>(pi_range))
-    };
-    // std::cout << subFactorCnt(std::get<0>(pi_range)) << ", ";
-    // std::cout << subFactorCnt(std::get<1>(pi_range)) << ", ";
-    // std::cout << singleCharRunCnt(std::get<0>(pi_range)) << ", ";
-    // std::cout << singleCharRunCnt(std::get<1>(pi_range)) << "\n";
-    //return singleCharRunCnt(C[r_rl_int_symbol] - C[2] + 1) - singleCharRunCnt(C[l_rl_int_symbol] - C[2] + 1);
-}
+// void XBWT_location::singleCharacterRunQuery(uint64_t rl_int_symbol, SymbolTable& runLength_symbol_table, std::pair<uint64_t, uint64_t> &result, uint64_t maxRunLength) {
+//     uint64_t l_rl_int_symbol = rl_int_symbol, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
+//     xbwt_range pi_range = {
+//         C[l_rl_int_symbol] - C[2] + 1,
+//         C[r_rl_int_symbol] - C[2] + 1
+//     };
+//     // std::cout << "l/r_rl_int_symbol: " << l_rl_int_symbol << ", " << r_rl_int_symbol << "\n";
+//     // std::cout << "pi_range: " << std::get<0>(pi_range) << ", " << std::get<1>(pi_range) << "\n";
+//     // {cnt * len, cnt}
+//     result = {
+//         singleCharRunCnt(std::get<1>(pi_range)) - singleCharRunCnt(std::get<0>(pi_range)),
+//         subFactorCnt(std::get<1>(pi_range)) - subFactorCnt(std::get<0>(pi_range))
+//     };
+//     // std::cout << subFactorCnt(std::get<0>(pi_range)) << ", ";
+//     // std::cout << subFactorCnt(std::get<1>(pi_range)) << ", ";
+//     // std::cout << singleCharRunCnt(std::get<0>(pi_range)) << ", ";
+//     // std::cout << singleCharRunCnt(std::get<1>(pi_range)) << "\n";
+//     //return singleCharRunCnt(C[r_rl_int_symbol] - C[2] + 1) - singleCharRunCnt(C[l_rl_int_symbol] - C[2] + 1);
+// }
 
-template <typename Iterator>
-uint64_t XBWT_location::subFactorSuffixRangeQuery(Iterator rbegin, Iterator rend, SymbolTable& runLength_symbol_table, uint64_t maxRunLength) {
-    uint64_t l_rl_int_symbol = *rbegin, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
-    xbwt_range L_range = {
-        last_select(C[l_rl_int_symbol] - C[2] + 1) + 1,
-        last_select(C[r_rl_int_symbol] - C[2] + 1) + 1
-    };
-    // std::cout << "L_range: " << std::get<0>(L_range) << ", " << std::get<1>(L_range) << "\n";
-    size_t cnt = 0;
-    rend = std::next(rend); // range-query until the last character run
-    auto it {std::prev(rbegin)};
-    while (it != rend) {
-        //print(L_range, true);
-        if (!DownwardNavigation(L_range, *it)) { return cnt; }
-        it = std::prev(it);
-    }
+// template <typename Iterator>
+// uint64_t XBWT_location::subFactorSuffixRangeQuery(Iterator rbegin, Iterator rend, SymbolTable& runLength_symbol_table, uint64_t maxRunLength) {
+//     uint64_t l_rl_int_symbol = *rbegin, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
+//     xbwt_range L_range = {
+//         last_select(C[l_rl_int_symbol] - C[2] + 1) + 1,
+//         last_select(C[r_rl_int_symbol] - C[2] + 1) + 1
+//     };
+//     // std::cout << "L_range: " << std::get<0>(L_range) << ", " << std::get<1>(L_range) << "\n";
+//     size_t cnt = 0;
+//     rend = std::next(rend); // range-query until the last character run
+//     auto it {std::prev(rbegin)};
+//     while (it != rend) {
+//         //print(L_range, true);
+//         if (!DownwardNavigation(L_range, *it)) { return cnt; }
+//         it = std::prev(it);
+//     }
 
-    l_rl_int_symbol = *rend, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
-    //print(L_range, true);
-    // the last character run
-    for (size_t rl_int_symbol = l_rl_int_symbol; rl_int_symbol < r_rl_int_symbol; rl_int_symbol++) {
-        xbwt_range tmp_L_range {L_range};
-        //std::cout << "len: " << len << "\n";
-        xbwt_range pi_range = L_range_to_pi_range(tmp_L_range, rl_int_symbol);
-        //print(pi_range, false);
-        if (!IsNotEmptyRange(pi_range)) { continue; }
-        cnt += subFactorCnt(std::get<1>(pi_range)) - subFactorCnt(std::get<0>(pi_range));
-    }
-    return cnt;
-}
+//     l_rl_int_symbol = *rend, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
+//     //print(L_range, true);
+//     // the last character run
+//     for (size_t rl_int_symbol = l_rl_int_symbol; rl_int_symbol < r_rl_int_symbol; rl_int_symbol++) {
+//         xbwt_range tmp_L_range {L_range};
+//         //std::cout << "len: " << len << "\n";
+//         xbwt_range pi_range = L_range_to_pi_range(tmp_L_range, rl_int_symbol);
+//         //print(pi_range, false);
+//         if (!IsNotEmptyRange(pi_range)) { continue; }
+//         cnt += subFactorCnt(std::get<1>(pi_range)) - subFactorCnt(std::get<0>(pi_range));
+//     }
+//     return cnt;
+// }
 
-template <typename Iterator, typename Range>
-void XBWT_location::suffixRangeQuery(Iterator rbegin, Iterator rend, Range &grammar_range, SymbolTable& runLength_symbol_table, uint64_t maxRunLength) {
-    uint64_t l_rl_int_symbol = *rbegin, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
-    xbwt_range L_range = {
-        last_select(C[l_rl_int_symbol] - C[2] + 1) + 1,
-        last_select(C[r_rl_int_symbol] - C[2] + 1) + 1
-    };
-    // std::cout << "L_range: " << std::get<0>(L_range) << ", " << std::get<1>(L_range) << "\n";
-    // xbwt_range L_range = {last_select(C[*rbegin] - C[2] + 1) + 1, last_select(C[(*rbegin) + 1] - C[2] + 1)};
-    auto it {std::prev(rbegin)};
-    while (it != rend) {
-        if (!DownwardNavigation(L_range, *it)) { 
-            grammar_range = {1, 0}; 
-            return;
-        }
-        it = std::prev(it);
-    }
-    // std::cout << "L_range: " << std::get<0>(L_range) << ", " << std::get<1>(L_range) << "\n";
-    // std::cout << "l, r: " << L.rank(std::get<0>(L_range), t_offset) + 1 << ", " << L.rank(std::get<1>(L_range), t_offset) << "\n";
-    grammar_range = {L.rank(std::get<0>(L_range), t_offset) + 1, L.rank(std::get<1>(L_range), t_offset)};
-    if (std::get<0>(grammar_range) > std::get<1>(grammar_range)) {
-        grammar_range = {1, 0};
-    }
-    return;
-}
+// template <typename Iterator, typename Range>
+// void XBWT_location::suffixRangeQuery(Iterator rbegin, Iterator rend, Range &grammar_range, SymbolTable& runLength_symbol_table, uint64_t maxRunLength) {
+//     uint64_t l_rl_int_symbol = *rbegin, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
+//     xbwt_range L_range = {
+//         last_select(C[l_rl_int_symbol] - C[2] + 1) + 1,
+//         last_select(C[r_rl_int_symbol] - C[2] + 1) + 1
+//     };
+//     // std::cout << "L_range: " << std::get<0>(L_range) << ", " << std::get<1>(L_range) << "\n";
+//     // xbwt_range L_range = {last_select(C[*rbegin] - C[2] + 1) + 1, last_select(C[(*rbegin) + 1] - C[2] + 1)};
+//     auto it {std::prev(rbegin)};
+//     while (it != rend) {
+//         if (!DownwardNavigation(L_range, *it)) { 
+//             grammar_range = {1, 0}; 
+//             return;
+//         }
+//         it = std::prev(it);
+//     }
+//     // std::cout << "L_range: " << std::get<0>(L_range) << ", " << std::get<1>(L_range) << "\n";
+//     // std::cout << "l, r: " << L.rank(std::get<0>(L_range), t_offset) + 1 << ", " << L.rank(std::get<1>(L_range), t_offset) << "\n";
+//     grammar_range = {L.rank(std::get<0>(L_range), t_offset) + 1, L.rank(std::get<1>(L_range), t_offset)};
+//     if (std::get<0>(grammar_range) > std::get<1>(grammar_range)) {
+//         grammar_range = {1, 0};
+//     }
+//     return;
+// }
 
-template <typename Iterator, typename Range>
-void XBWT_location::prefixRangeQuery(Iterator begin, Iterator end, Range &grammar_range, SymbolTable& runLength_symbol_table, uint64_t maxRunLength) {
-    uint64_t l_rl_int_symbol = *begin, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
-    xbwt_range L_range = {
-        last_select(C[l_rl_int_symbol] - C[2] + 1) + 1,
-        last_select(C[r_rl_int_symbol] - C[2] + 1) + 1
-    };
-    //xbwt_range L_range = {last_select(C[*begin] - C[2] + 1) + 1, last_select(C[(*begin) + 1] - C[2] + 1)};
-    auto it {std::next(begin)};
-    while (it != end) {
-        if (!DownwardNavigation(L_range, *it)) { 
-            grammar_range = {1, 0}; 
-            return;
-        }
-        it = std::next(it);
-    }
-    grammar_range = {L.rank(std::get<0>(L_range), t_offset) + 1, L.rank(std::get<1>(L_range), t_offset)};
-    if (std::get<0>(grammar_range) > std::get<1>(grammar_range)) {
-        grammar_range = {1, 0};
-    }
-    return;
-}
+// template <typename Iterator, typename Range>
+// void XBWT_location::prefixRangeQuery(Iterator begin, Iterator end, Range &grammar_range, SymbolTable& runLength_symbol_table, uint64_t maxRunLength) {
+//     uint64_t l_rl_int_symbol = *begin, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
+//     xbwt_range L_range = {
+//         last_select(C[l_rl_int_symbol] - C[2] + 1) + 1,
+//         last_select(C[r_rl_int_symbol] - C[2] + 1) + 1
+//     };
+//     //xbwt_range L_range = {last_select(C[*begin] - C[2] + 1) + 1, last_select(C[(*begin) + 1] - C[2] + 1)};
+//     auto it {std::next(begin)};
+//     while (it != end) {
+//         if (!DownwardNavigation(L_range, *it)) { 
+//             grammar_range = {1, 0}; 
+//             return;
+//         }
+//         it = std::next(it);
+//     }
+//     grammar_range = {L.rank(std::get<0>(L_range), t_offset) + 1, L.rank(std::get<1>(L_range), t_offset)};
+//     if (std::get<0>(grammar_range) > std::get<1>(grammar_range)) {
+//         grammar_range = {1, 0};
+//     }
+//     return;
+// }
 
-template <typename Iterator>
-uint64_t XBWT_location::infixMatch(Iterator begin, Iterator end) {
-    xbwt_range L_range = {0, last_select(1) + 1};
-    auto it {begin};
-    while (it != end) {
-        if (!DownwardNavigation(L_range, *it)) { return 0; }
-        it = std::next(it);
-    }
-    size_t grammar_below_l = L.rank(std::get<0>(L_range), t_offset);
-    size_t grammar_below_r = L.rank(std::get<1>(L_range), t_offset);
-    if (grammar_below_l == grammar_below_r) { return 0; } // no grammar within [l, r)
-    else { return grammar_below_r; }
-}
+// template <typename Iterator>
+// uint64_t XBWT_location::infixMatch(Iterator begin, Iterator end) {
+//     xbwt_range L_range = {0, last_select(1) + 1};
+//     auto it {begin};
+//     while (it != end) {
+//         if (!DownwardNavigation(L_range, *it)) { return 0; }
+//         it = std::next(it);
+//     }
+//     size_t grammar_below_l = L.rank(std::get<0>(L_range), t_offset);
+//     size_t grammar_below_r = L.rank(std::get<1>(L_range), t_offset);
+//     if (grammar_below_l == grammar_below_r) { return 0; } // no grammar within [l, r)
+//     else { return grammar_below_r; }
+// }
 
 std::ostream& operator<< (std::ostream &out, XBWT_location const &xbwt) {
     size_t n = xbwt.last.size();
@@ -707,7 +705,7 @@ std::pair<size_t, size_t> XBWT_location::match_pos_in_pattern(const sdsl::int_ve
     xbwt_range L_range = {0, last_select(1) + 1};
     //size_t l = 0, r = last_select(1) + 1; // rank will exclusive the right most position
     for (size_t i = 0; i < pattern.size(); i++) {
-        size_t c = pattern[i];
+        size_t c = symbol_table_[pattern[i]];
         while (!DownwardNavigation(L_range, c) && std::get<0>(L_range) > 0) { failureLink(std::get<0>(L_range), std::get<1>(L_range)); }
         if (L[std::get<0>(L_range)] == 1) { 
             size_t len = nodeHeight(std::get<0>(L_range), std::get<1>(L_range));
@@ -722,7 +720,7 @@ bool XBWT_location::match_if_exist(const sdsl::int_vector<>& pattern) {
     bool result = false;
     //size_t l = 0, r = last_select(1) + 1; // rank will exclusive the right most position
     for (size_t i = 0; i < pattern.size(); i++) {
-        size_t c = pattern[i];
+        size_t c = symbol_table_[pattern[i]];
         while (!DownwardNavigation(L_range, c) && std::get<0>(L_range) > 0) { failureLink(std::get<0>(L_range), std::get<1>(L_range)); }
         if (L[std::get<0>(L_range)] == 1) { 
             result = true;

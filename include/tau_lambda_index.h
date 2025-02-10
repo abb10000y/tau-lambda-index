@@ -415,6 +415,8 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
             fclose(fd);
         } else if (index_type == index_types::LMS_type) {
             lms.load(in);
+        } else if (index_type == index_types::compact_suffix_trie) {
+            location_trie->load(in);
         }
     }
 }
@@ -448,6 +450,8 @@ void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &resu
                 if (tmp.size() >= tau_l) {
                     for (auto r : tmp) { results.push_back(r); }
                 }
+            } else if (index_type == index_types::compact_suffix_trie) {
+                // TODO
             }
         }
     }
