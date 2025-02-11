@@ -19,6 +19,7 @@ private:
     // void gen_local_locations(std::vector<unsigned char> &inserted_string, std::vector<size_t> &inserted_locations, std::vector<size_t> &leaves_locations, XBWT_location *xbwt_used);
 
 public:
+    compact_suffix_trie(){};
     compact_suffix_trie(SymbolTable &symbol_table_, XBWT* xbwt, std::vector<std::pair<size_t, size_t>> &min_factors, std::string &text, size_t lambda);
     void serialize(std::ofstream &out) {
         // AC_auto_leaves_offsets.serialize(out);
@@ -30,6 +31,7 @@ public:
         // AC_auto_leaves_offsets.
         size_t cnt;
         sdsl::read_member(cnt, in);
+        xbwts_forw.resize(cnt);
         xbwts_reverse.resize(cnt);
         for (size_t i = 0; i < cnt; i++) {
             xbwts_forw[i] = std::make_unique<XBWT_location>();

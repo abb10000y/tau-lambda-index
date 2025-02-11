@@ -389,7 +389,6 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
     in.read(reinterpret_cast<char*>(&length), sizeof(length));
     inputTextPath.resize(length);
     in.read(&inputTextPath[0], length);
-    
     sdsl::read_member(index_type, in);
     sdsl::read_member(tau_l, in);
     sdsl::read_member(tau_u, in);
@@ -416,6 +415,7 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
         } else if (index_type == index_types::LMS_type) {
             lms.load(in);
         } else if (index_type == index_types::compact_suffix_trie) {
+            location_trie = new compact_suffix_trie();
             location_trie->load(in);
         }
     }
