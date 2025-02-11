@@ -45,7 +45,7 @@ private:
     // sdsl::sd_vector<>::select_1_type subFactorCnt;
 
     sdsl::int_vector<> locations, locations_offset, locations_length, next_leaf_rank; // leaves (rank only consider t_symbol)
-    sdsl::int_vector<> leftest_child_rank, rightest_child_rank; // internal nodes (rank exclude t_symbol)
+    sdsl::int_vector<> leftest_child_rank, rightest_child_rank; // internal nodes ('1' rank in Last)
     SymbolTable symbol_table_;
 
     bool DownwardNavigation(xbwt_range& L_range, size_t c) const; // return found or not
@@ -56,7 +56,8 @@ private:
         return (std::get<0>(range) < std::get<1>(range));
     }
 
-    void dfs(xbwt_range L_range, size_t &prev_leaf_rank, size_t prev_internal_node_rank);
+    // void dfs(xbwt_range L_range, size_t &prev_leaf_rank, size_t prev_internal_node_rank);
+    void dfs(xbwt_range L_range, size_t &prev_leaf_rank);
 
     /*
     void print(xbwt_range range, bool isL) { // TODO: to be deleted
@@ -124,22 +125,32 @@ void XBWT_location::locate(sdsl::int_vector<8> pattern, std::vector<uint64_t> &r
         xbwt_range L_range = {0, last_select(1) + 1};
         size_t c;
         for (size_t i = 0, e = pattern.size(); i < e; i++) {
-            c = pattern[i];
+            c = symbol_table_[pattern[i]];
             if (!DownwardNavigation(L_range, c)) { return; }
         }
-        if (std::get<0>(L_range) + 1 == std::get<1>(L_range)) { // leaf
-            size_t rank = L.rank(std::get<1>(L_range), t_offset) - 1; // shift to 0-index
-            size_t offset = locations_offset[rank], len = locations_length[rank];
-            results.resize(len);
-            for (size_t i = 0; i < len; i++) {
-                results[i] = locations[offset++];
-            }
-        } else { // internal node
-            size_t l = std::get<0>(L_range), r = std::get<1>(L_range);
-            UpwardNavigation(l, r);
-            size_t rank = L.select(c, L.rank(r, c)) - L.rank(std::get<1>(L_range), t_offset);
-            size_t start_leaf_rank = leftest_child_rank[rank], end_leaf_rank = rightest_child_rank[rank];
+        size_t node_idx = last_rank(std::get<1>(L_range)) - 1; // shifting to 0-index
+        size_t cur_leaf_idx = leftest_child_rank[node_idx], end_leaf_idx = rightest_child_rank[node_idx];
+        size_t offset, length;
+        while (cur_leaf_idx != end_leaf_idx) {
+            offset = locations_offset[cur_leaf_idx], length = locations_length[cur_leaf_idx];
+            for (size_t i = 0; i < length; i++) { results.push_back(locations[offset++]); }
+            cur_leaf_idx = next_leaf_rank[cur_leaf_idx];
         }
+        offset = locations_offset[cur_leaf_idx], length = locations_length[cur_leaf_idx];
+        for (size_t i = 0; i < length; i++) { results.push_back(locations[offset++]); }
+        // if (std::get<0>(L_range) + 1 == std::get<1>(L_range)) { // leaf
+        //     size_t rank = L.rank(std::get<1>(L_range), t_offset) - 1; // shift to 0-index
+        //     size_t offset = locations_offset[rank], len = locations_length[rank];
+        //     results.resize(len);
+        //     for (size_t i = 0; i < len; i++) {
+        //         results[i] = locations[offset++];
+        //     }
+        // } else { // internal node
+        //     size_t l = std::get<0>(L_range), r = std::get<1>(L_range);
+        //     UpwardNavigation(l, r);
+        //     size_t rank = L.select(c, L.rank(r, c)) - L.rank(std::get<1>(L_range), t_offset);
+        //     size_t start_leaf_rank = leftest_child_rank[rank], end_leaf_rank = rightest_child_rank[rank];
+        // }
     }
     // if (last_rank(last_rank.size()) == 0) return 0; // empty
     // while (text_begin != text_end) {
@@ -152,24 +163,50 @@ void XBWT_location::locate(sdsl::int_vector<8> pattern, std::vector<uint64_t> &r
     // else { return grammar_below_r; }
 }
 
-void XBWT_location::dfs(xbwt_range L_range, size_t &prev_leaf_rank, size_t prev_internal_node_rank) {
-    size_t leaf_rank = L.rank(std::get<1>(L_range), 1);
+// void XBWT_location::dfs(xbwt_range L_range, size_t &prev_leaf_rank, size_t prev_internal_node_rank) {
+//     size_t leaf_rank = L.rank(std::get<1>(L_range), t_offset);
+//     for (size_t i = std::get<0>(L_range); i < std::get<1>(L_range); i++) {
+//         size_t c = L[i];
+//         if (c == 1) {
+//             next_leaf_rank[prev_leaf_rank] = leaf_rank;
+//             prev_leaf_rank = leaf_rank;
+//             if (std::get<0>(L_range) > 0) { // current node is not the root
+//                 leftest_child_rank[prev_internal_node_rank] = leaf_rank;
+//                 rightest_child_rank[prev_internal_node_rank] = leaf_rank;
+//             }
+//         } else {
+//             xbwt_range cur_range = L_range;
+//             DownwardNavigation(cur_range, c);
+//             dfs(cur_range, prev_leaf_rank, i - leaf_rank);
+//             if (std::get<0>(L_range) > 0) { // current node is node the root
+//                 if (i == std::get<0>(L_range)) { leftest_child_rank[prev_internal_node_rank] = leftest_child_rank[i - leaf_rank]; }
+//                 rightest_child_rank[prev_internal_node_rank] = rightest_child_rank[i - leaf_rank];
+//             }
+//         }
+//     }
+// }
+
+/// @brief This function aims to do two things: (1) record the idx of next (right) leaf for each leaf (2) record the leaf idx range [start, end] for each internal nodes
+/// @param L_range range for an internal node
+/// @param prev_leaf_rank the idx (t_offset rank) of the last visiting leaf
+void XBWT_location::dfs(xbwt_range L_range, size_t &prev_leaf_rank) {
+    size_t leaf_rank = L.rank(std::get<1>(L_range), t_offset) - 1; // shifting to 0-index
+    size_t node_idx = last_rank(std::get<1>(L_range)); // shifting to 0-index
     for (size_t i = std::get<0>(L_range); i < std::get<1>(L_range); i++) {
         size_t c = L[i];
-        if (c == 1) {
+        if (c == t_offset) {
             next_leaf_rank[prev_leaf_rank] = leaf_rank;
             prev_leaf_rank = leaf_rank;
-            if (std::get<0>(L_range) > 0) { // current node is not the root
-                leftest_child_rank[prev_internal_node_rank] = leaf_rank;
-                rightest_child_rank[prev_internal_node_rank] = leaf_rank;
-            }
+            leftest_child_rank[node_idx] = leaf_rank;
+            rightest_child_rank[node_idx] = leaf_rank;
         } else {
             xbwt_range cur_range = L_range;
             DownwardNavigation(cur_range, c);
-            dfs(cur_range, prev_leaf_rank, i - leaf_rank);
+            dfs(cur_range, prev_leaf_rank);
+            size_t child_idx = last_rank(std::get<1>(cur_range));
             if (std::get<0>(L_range) > 0) { // current node is node the root
-                if (i == std::get<0>(L_range)) { leftest_child_rank[prev_internal_node_rank] = leftest_child_rank[i - leaf_rank]; }
-                rightest_child_rank[prev_internal_node_rank] = rightest_child_rank[i - leaf_rank];
+                if (i == std::get<0>(L_range)) { leftest_child_rank[node_idx] = leftest_child_rank[child_idx]; }
+                rightest_child_rank[node_idx] = rightest_child_rank[child_idx];
             }
         }
     }
@@ -187,11 +224,15 @@ void XBWT_location::insert_locations(std::vector<std::vector<size_t>> &locations
         for (auto loc : locations_tmp[i]) { locations[k++] = loc; }
     }
 
-    leftest_child_rank.resize(last.size() - locations_tmp.size());
-    rightest_child_rank.resize(last.size() - locations_tmp.size());
+    // leftest_child_rank.resize(last.size() - locations_tmp.size());
+    leftest_child_rank.resize(last_rank(last.size()));
+    // rightest_child_rank.resize(last.size() - locations_tmp.size());
+    rightest_child_rank.resize(last_rank(last.size()));
     xbwt_range L_range {0, last_select(1) + 1};
     size_t prev_leaf_rank = 0;
-    dfs(L_range, prev_leaf_rank, 0);
+    // dfs(L_range, prev_leaf_rank, 0);
+    dfs(L_range, prev_leaf_rank);
+    next_leaf_rank[prev_leaf_rank] = L.rank(L.size(), t_offset); // TODO: necessary?
 
     sdsl::util::bit_compress(locations_offset);
     sdsl::util::bit_compress(locations_length);
