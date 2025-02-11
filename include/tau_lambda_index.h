@@ -282,8 +282,9 @@ void tau_lambda_index::load_min_factors(std::string &mf_path) {
 
     if (tau_u == 0) { is_original_index = true; }
 
-    if (is_original_index && index_type == index_types::old_tau_lambda_type) {
-        throw std::invalid_argument("old tau-lambda-index has no original self-index version");
+    if (is_original_index) {
+        if (index_type == index_types::old_tau_lambda_type) { throw std::invalid_argument("old tau-lambda-index has no original self-index version"); }
+        else if (index_type == index_types::compact_suffix_trie) { throw std::invalid_argument("compact_suffix_trie has no original self-index version"); }
     }
 
     in.close();
@@ -436,7 +437,7 @@ void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &resu
         size_t offset, length, rank;
         xbwt->match_pos_in_pattern(pattern_int, offset, length, rank);
         if (rank > 0) {
-            location_trie->locate(pattern_int, offset, length, rank - 1, results); // -1 for shifting to 0-index
+            location_trie->locate(pattern_int, offset, length, rank - 1, tau_l, results); // -1 for shifting to 0-index
         }
     } else if (p_len <= lambda && xbwt->match_if_exist(pattern_int)) {
         if (index_type == index_types::r_index_type) {

@@ -114,13 +114,13 @@ public:
     // void singleCharacterRunQuery(uint64_t rl_int_symbol, SymbolTable& runLength_symbol_table, std::pair<uint64_t, uint64_t> &result, uint64_t maxRunLength); // {cnt, len}
     friend std::ostream& operator<< (std::ostream &out, XBWT_location const &xbwt);
     void insert_locations(std::vector<std::vector<size_t>> &locations_tmp, size_t locations_cnt);
-    void locate(sdsl::int_vector<8> pattern, std::vector<uint64_t> &results);
+    void locate(sdsl::int_vector<8> pattern, std::vector<uint64_t> &results, const size_t mf_offset);
 };
 
-void XBWT_location::locate(sdsl::int_vector<8> pattern, std::vector<uint64_t> &results) {
+void XBWT_location::locate(sdsl::int_vector<8> pattern, std::vector<uint64_t> &results, const size_t mf_offset) {
     if (pattern.size() == 0) {
         results.resize(locations.size());
-        for (size_t i = 0, e = locations.size(); i < e; i++) { results[i] = locations[i]; }
+        for (size_t i = 0, e = locations.size(); i < e; i++) { results[i] = locations[i] - mf_offset; }
     } else {
         xbwt_range L_range = {0, last_select(1) + 1};
         size_t c;
@@ -133,11 +133,11 @@ void XBWT_location::locate(sdsl::int_vector<8> pattern, std::vector<uint64_t> &r
         size_t offset, length;
         while (cur_leaf_idx != end_leaf_idx) {
             offset = locations_offset[cur_leaf_idx], length = locations_length[cur_leaf_idx];
-            for (size_t i = 0; i < length; i++) { results.push_back(locations[offset++]); }
+            for (size_t i = 0; i < length; i++) { results.push_back(locations[offset++] - mf_offset); }
             cur_leaf_idx = next_leaf_rank[cur_leaf_idx];
         }
         offset = locations_offset[cur_leaf_idx], length = locations_length[cur_leaf_idx];
-        for (size_t i = 0; i < length; i++) { results.push_back(locations[offset++]); }
+        for (size_t i = 0; i < length; i++) { results.push_back(locations[offset++] - mf_offset); }
         // if (std::get<0>(L_range) + 1 == std::get<1>(L_range)) { // leaf
         //     size_t rank = L.rank(std::get<1>(L_range), t_offset) - 1; // shift to 0-index
         //     size_t offset = locations_offset[rank], len = locations_length[rank];
