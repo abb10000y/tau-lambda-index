@@ -16,7 +16,7 @@ private:
     // sdsl::int_vector<> xbwt_forw_locations, xbwt_forw_leaf_offsets, xbwt_reverse_locations, xbwt_reverse_leaf_offsets;
 
     void build_forw_reverse_xbwts(SymbolTable &symbol_table_, XBWT* xbwt, std::vector<std::pair<size_t, size_t>> &min_factors, std::string &text, size_t lambda);
-    void gen_local_locations(std::vector<unsigned char> &inserted_string, std::vector<size_t> &inserted_locations, std::vector<size_t> &leaves_locations, XBWT_location *xbwt_used);
+    // void gen_local_locations(std::vector<unsigned char> &inserted_string, std::vector<size_t> &inserted_locations, std::vector<size_t> &leaves_locations, XBWT_location *xbwt_used);
 
 public:
     compact_suffix_trie(SymbolTable &symbol_table_, XBWT* xbwt, std::vector<std::pair<size_t, size_t>> &min_factors, std::string &text, size_t lambda);
@@ -38,6 +38,7 @@ public:
         for (size_t i = 0; i < cnt; i++) { xbwts_forw[i]->Load(in); }
         for (size_t i = 0; i < cnt; i++) { xbwts_reverse[i]->Load(in); }
     }
+    void locate(sdsl::int_vector<> &pattern, size_t offset, size_t length, size_t rank, std::vector<uint64_t> &results);
 };
 
 compact_suffix_trie::compact_suffix_trie(SymbolTable &symbol_table_, XBWT* xbwt, std::vector<std::pair<size_t, size_t>> &min_factors, std::string &text, size_t lambda) {
@@ -123,11 +124,11 @@ void compact_suffix_trie::build_forw_reverse_xbwts(SymbolTable &symbol_table_, X
             b_forw = ++e_forw;
         }
         
-        for (size_t j = 0, cnt = 0; j < xbwt_leaves_cnt; j++) {
-            xbwt_forw_leaf_offsets_tmp[j] = cnt;
-            cnt += xbwt_forw_locations_tmp[j].size();
-        }
-        xbwts_forw[i]->insert_locations(xbwt_forw_locations_tmp, locations_tmp.size());
+        // for (size_t j = 0, cnt = 0; j < xbwt_leaves_cnt; j++) {
+        //     xbwt_forw_leaf_offsets_tmp[j] = cnt;
+        //     cnt += xbwt_forw_locations_tmp[j].size();
+        // }
+        xbwts_forw[i]->insert_locations(xbwt_forw_locations_tmp, locations_tmp[i].size());
 
         // reverse
         while (e_rev < strings_reverse[i].size()) {
@@ -144,28 +145,53 @@ void compact_suffix_trie::build_forw_reverse_xbwts(SymbolTable &symbol_table_, X
             b_rev = ++e_rev;
         }
         
-        for (size_t j = 0, cnt = 0; j < xbwt_leaves_cnt; j++) {
-            xbwt_reverse_leaf_offsets_tmp[j] = cnt;
-            cnt += xbwt_reverse_locations_tmp[j].size();
-        }
-        xbwts_reverse[i]->insert_locations(xbwt_reverse_locations_tmp, locations_tmp.size());
+        // for (size_t j = 0, cnt = 0; j < xbwt_leaves_cnt; j++) {
+        //     xbwt_reverse_leaf_offsets_tmp[j] = cnt;
+        //     cnt += xbwt_reverse_locations_tmp[j].size();
+        // }
+        xbwts_reverse[i]->insert_locations(xbwt_reverse_locations_tmp, locations_tmp[i].size());
     }
 }
 
-void compact_suffix_trie::gen_local_locations(std::vector<unsigned char> &inserted_string, std::vector<size_t> &inserted_locations, std::vector<size_t> &leaves_locations, XBWT_location *xbwt_used) {
-    leaves_locations.clear();
+// void compact_suffix_trie::gen_local_locations(std::vector<unsigned char> &inserted_string, std::vector<size_t> &inserted_locations, std::vector<size_t> &leaves_locations, XBWT_location *xbwt_used) {
+//     leaves_locations.clear();
     
-    if (inserted_string.size() == 1) { // only 1 t_symbol
-        leaves_locations.push_back(inserted_locations[0]);
-    } else {
-        // inserted in the reverse order, so we need to query back
-        size_t b = inserted_string.size() - 2, e = b;
-        for (size_t i = inserted_locations.size(); i > 0; i--) {
-            while (e > 0 && inserted_string[e] != t_symbol) { e--; }
-            sdsl::int_vector<> pattern_int;
-            pattern_int.width(8);
-            pattern_int.resize(b - e + 1);
-        }
+//     if (inserted_string.size() == 1) { // only 1 t_symbol
+//         leaves_locations.push_back(inserted_locations[0]);
+//     } else {
+//         // inserted in the reverse order, so we need to query back
+//         size_t b = inserted_string.size() - 2, e = b;
+//         for (size_t i = inserted_locations.size(); i > 0; i--) {
+//             while (e > 0 && inserted_string[e] != t_symbol) { e--; }
+//             sdsl::int_vector<> pattern_int;
+//             pattern_int.width(8);
+//             pattern_int.resize(b - e + 1);
+//         }
+//     }
+// }
 
+void compact_suffix_trie::locate(sdsl::int_vector<> &pattern, size_t offset, size_t length, size_t rank, std::vector<uint64_t> &results) {
+    std::vector<uint64_t> results_forw, results_reverse;
+    sdsl::int_vector<8> pattern_forw, pattern_reverse;
+    // forward
+    pattern_forw.resize(offset);
+    for (size_t i = 0, k = pattern_forw.size() - 1; i < offset; i++, k--) {
+        pattern_forw[k] = pattern[i];
     }
+    xbwts_forw[rank]->locate(pattern_forw, results_forw);
+
+    // reverse
+    pattern_reverse.resize(pattern.size() - offset - length);
+    for (size_t i = offset + length, k = 0, e = pattern.size(); i < e; i++, k++) {
+        pattern_reverse[k] = pattern[i];
+    }
+    xbwts_reverse[rank]->locate(pattern_reverse, results_reverse);
+
+    std::sort(results_forw.begin(), results_forw.end());
+    std::sort(results_reverse.begin(), results_reverse.end());
+    results.resize(std::min(results_forw.size(), results_reverse.size()));
+    auto it = std::set_intersection(results_forw.begin(), results_forw.end(),
+                                    results_reverse.begin(), results_reverse.end(),
+                                    results.begin());
+    results.resize(it - results.begin());
 }

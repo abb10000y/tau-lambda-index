@@ -113,7 +113,44 @@ public:
     // void singleCharacterRunQuery(uint64_t rl_int_symbol, SymbolTable& runLength_symbol_table, std::pair<uint64_t, uint64_t> &result, uint64_t maxRunLength); // {cnt, len}
     friend std::ostream& operator<< (std::ostream &out, XBWT_location const &xbwt);
     void insert_locations(std::vector<std::vector<size_t>> &locations_tmp, size_t locations_cnt);
+    void locate(sdsl::int_vector<8> pattern, std::vector<uint64_t> &results);
 };
+
+void XBWT_location::locate(sdsl::int_vector<8> pattern, std::vector<uint64_t> &results) {
+    if (pattern.size() == 0) {
+        results.resize(locations.size());
+        for (size_t i = 0, e = locations.size(); i < e; i++) { results[i] = locations[i]; }
+    } else {
+        xbwt_range L_range = {0, last_select(1) + 1};
+        size_t c;
+        for (size_t i = 0, e = pattern.size(); i < e; i++) {
+            c = pattern[i];
+            if (!DownwardNavigation(L_range, c)) { return; }
+        }
+        if (std::get<0>(L_range) + 1 == std::get<1>(L_range)) { // leaf
+            size_t rank = L.rank(std::get<1>(L_range), t_offset) - 1; // shift to 0-index
+            size_t offset = locations_offset[rank], len = locations_length[rank];
+            results.resize(len);
+            for (size_t i = 0; i < len; i++) {
+                results[i] = locations[offset++];
+            }
+        } else { // internal node
+            size_t l = std::get<0>(L_range), r = std::get<1>(L_range);
+            UpwardNavigation(l, r);
+            size_t rank = L.select(c, L.rank(r, c)) - L.rank(std::get<1>(L_range), t_offset);
+            size_t start_leaf_rank = leftest_child_rank[rank], end_leaf_rank = rightest_child_rank[rank];
+        }
+    }
+    // if (last_rank(last_rank.size()) == 0) return 0; // empty
+    // while (text_begin != text_end) {
+    //     size_t c = symbol_table_[*text_begin++]; ;
+    //     if (!DownwardNavigation(L_range, c)) { return 0; }
+    // }
+    // size_t grammar_below_l = L.rank(std::get<0>(L_range), t_offset);
+    // size_t grammar_below_r = L.rank(std::get<1>(L_range), t_offset);
+    // if (grammar_below_l == grammar_below_r) { return 0; } // no grammar within [l, r)
+    // else { return grammar_below_r; }
+}
 
 void XBWT_location::dfs(xbwt_range L_range, size_t &prev_leaf_rank, size_t prev_internal_node_rank) {
     size_t leaf_rank = L.rank(std::get<1>(L_range), 1);
@@ -158,6 +195,7 @@ void XBWT_location::insert_locations(std::vector<std::vector<size_t>> &locations
 
     sdsl::util::bit_compress(locations_offset);
     sdsl::util::bit_compress(locations_length);
+    sdsl::util::bit_compress(locations);
     sdsl::util::bit_compress(next_leaf_rank);
     sdsl::util::bit_compress(leftest_child_rank);
     sdsl::util::bit_compress(rightest_child_rank);
@@ -382,6 +420,7 @@ void XBWT_location::Serialize(std::ostream &out) {
     // singleCharRunCnt.serialize(out);
     locations_offset.serialize(out);
     locations_length.serialize(out);
+    locations.serialize(out);
     next_leaf_rank.serialize(out);
     leftest_child_rank.serialize(out);
     rightest_child_rank.serialize(out);
@@ -403,6 +442,7 @@ void XBWT_location::Load(std::istream &in) {
     // singleCharRunCnt.load(in, &singleCharRunCnt_bits);
     locations_offset.load(in);
     locations_length.load(in);
+    locations.load(in);
     next_leaf_rank.load(in);
     leftest_child_rank.load(in);
     rightest_child_rank.load(in);

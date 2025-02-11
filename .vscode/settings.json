@@ -68,6 +68,7 @@
         "__config": "cpp",
         "random": "cpp",
         "condition_variable": "cpp",
-        "iterator": "cpp"
+        "iterator": "cpp",
+        "version": "cpp"
     }
 }

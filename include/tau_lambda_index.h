@@ -424,34 +424,37 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
 void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &results) {
     results.clear();
     sdsl::int_vector<> pattern_int;
-    pattern_int.width(64);
+    pattern_int.width(8);
     pattern_int.resize(pattern.size());
+    size_t p_len = pattern.length();
     for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[static_cast<unsigned char>(pattern[i]) + t_symbol]; }
     // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
-    if (index_type == index_types::old_tau_lambda_type && pattern.length() <= lambda) {
+    if (index_type == index_types::old_tau_lambda_type && p_len <= lambda) {
         std::vector<size_t> tmp = old_tau_lambda->location_tree_search(pattern);
         for (auto r : tmp) { results.push_back(r); }
-    } else {
-        if (pattern.length() <= lambda && xbwt->match_if_exist(pattern_int)) {
-            if (index_type == index_types::r_index_type) {
-                results = r_index->locate_all_tau(pattern, tau_l, tau_u);
-            } else if (index_type == index_types::lz77_type) {
-                unsigned char *p = new unsigned char[pattern.size() + 1];
-                std::memcpy(p, pattern.c_str(), pattern.size() + 1);
-                unsigned int nooc;
-                std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc);
-                if (tmp->size() >= tau_l) {
-                    results.resize(tmp->size());
-                    for (size_t i = 0; i < tmp->size(); i++) { results[i] = static_cast<uint64_t>((*tmp)[i]); }
-                }
-            } else if (index_type == index_types::LMS_type) {
-                std::set<lpg_index::size_type> tmp;
-                lms.locate(pattern, tmp);
-                if (tmp.size() >= tau_l) {
-                    for (auto r : tmp) { results.push_back(r); }
-                }
-            } else if (index_type == index_types::compact_suffix_trie) {
-                // TODO
+    } else if (p_len <= lambda && index_type == index_types::compact_suffix_trie) {
+        size_t offset, length, rank;
+        xbwt->match_pos_in_pattern(pattern_int, offset, length, rank);
+        if (rank > 0) {
+            location_trie->locate(pattern_int, offset, length, rank - 1, results); // -1 for shifting to 0-index
+        }
+    } else if (p_len <= lambda && xbwt->match_if_exist(pattern_int)) {
+        if (index_type == index_types::r_index_type) {
+            results = r_index->locate_all_tau(pattern, tau_l, tau_u);
+        } else if (index_type == index_types::lz77_type) {
+            unsigned char *p = new unsigned char[pattern.size() + 1];
+            std::memcpy(p, pattern.c_str(), pattern.size() + 1);
+            unsigned int nooc;
+            std::vector<unsigned int> *tmp = lz77->locate(p, pattern.size(), &nooc);
+            if (tmp->size() >= tau_l) {
+                results.resize(tmp->size());
+                for (size_t i = 0; i < tmp->size(); i++) { results[i] = static_cast<uint64_t>((*tmp)[i]); }
+            }
+        } else if (index_type == index_types::LMS_type) {
+            std::set<lpg_index::size_type> tmp;
+            lms.locate(pattern, tmp);
+            if (tmp.size() >= tau_l) {
+                for (auto r : tmp) { results.push_back(r); }
             }
         }
     }

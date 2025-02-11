@@ -68,6 +68,7 @@ public:
     uint64_t match(sdsl::int_vector<>::iterator text_begin, sdsl::int_vector<>::iterator text_end);
     uint64_t nodeHeight(size_t l, size_t r);
     std::pair<size_t, size_t> match_pos_in_pattern(const sdsl::int_vector<>& pattern);
+    void match_pos_in_pattern(const sdsl::int_vector<>& pattern, size_t &offset, size_t &length, size_t &rank);
     // void match_pos_in_pattern(const sdsl::int_vector<>& pattern, size_t &offset, size_t &length, size_t &rank);
     bool match_if_exist(const sdsl::int_vector<>& pattern);
     void failureLink(size_t& l, size_t& r);
@@ -670,6 +671,22 @@ std::pair<size_t, size_t> XBWT::match_pos_in_pattern(const sdsl::int_vector<>& p
         }
     }
     return std::make_pair(-1, -1);
+}
+
+void XBWT::match_pos_in_pattern(const sdsl::int_vector<>& pattern, size_t &offset, size_t &length, size_t &rank) {
+    rank = 0;
+    xbwt_range L_range = {0, last_select(1) + 1};
+    //size_t l = 0, r = last_select(1) + 1; // rank will exclusive the right most position
+    for (size_t i = 0; i < pattern.size(); i++) {
+        size_t c = pattern[i];
+        while (!DownwardNavigation(L_range, c) && std::get<0>(L_range) > 0) { failureLink(std::get<0>(L_range), std::get<1>(L_range)); }
+        if (L[std::get<0>(L_range)] == 1) { 
+            length = nodeHeight(std::get<0>(L_range), std::get<1>(L_range));
+            offset = i - length + 1;
+            rank = L.rank(std::get<1>(L_range), 1);
+            return;
+        }
+    }
 }
 
 bool XBWT::match_if_exist(const sdsl::int_vector<>& pattern) {
