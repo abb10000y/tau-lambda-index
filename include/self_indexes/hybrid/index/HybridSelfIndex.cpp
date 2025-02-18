@@ -1437,22 +1437,22 @@ ulong HybridSelfIndex::searchPhraTxt(ulong x, ulong *pos, uint *len){
 // =============================================================================================================
 // LOCATE METHODS
 // =============================================================================================================
-void HybridSelfIndex::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ){
+void HybridSelfIndex::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ, size_t maxOcc){
 	if (m==1)
-		locateAChar(pat, nOcc, occ);
+		locateAChar(pat, nOcc, occ, maxOcc);
 	else{
 		if (m<=M)
-			locateUptoM(pat, m, nOcc, occ);
+			locateUptoM(pat, m, nOcc, occ, maxOcc);
 		else{
 			if (m<=(M<<1))
-				locateUpto2M(pat, m, nOcc, occ);
+				locateUpto2M(pat, m, nOcc, occ, maxOcc);
 			else
-				locateLargeM_b(pat, m, nOcc, occ);
+				locateLargeM_b(pat, m, nOcc, occ, maxOcc);
 		}
 	}
 }
 
-void HybridSelfIndex::locateAChar(uchar *pat, ulong *nOcc, ulong **occ){
+void HybridSelfIndex::locateAChar(uchar *pat, ulong *nOcc, ulong **occ, size_t maxOcc){
 	pat[1]='\0';
 	string query = string((char *)pat);
 	size_t nLoc = sdsl::count(FMI, query.begin(), query.begin()+1);
@@ -1469,6 +1469,10 @@ void HybridSelfIndex::locateAChar(uchar *pat, ulong *nOcc, ulong **occ){
 			if (BL_il[pr-1]){
 				A[nn] = getPosPhraT(pr) - dx;
 				nn++;
+				if (maxOcc > 0 && nn > maxOcc) {
+					*nOcc = 0;
+					return;
+				}
 				//cout << i << " p*** --> " << A[nn-1] << endl;
 			}
 		}
@@ -1485,7 +1489,7 @@ void HybridSelfIndex::locateAChar(uchar *pat, ulong *nOcc, ulong **occ){
 		*nOcc=0;
 }
 
-void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
+void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ, size_t maxOcc){
 	string query = string((char *)pat);
 	auto list = sdsl::locate(FMI, query.begin(), query.begin()+m);
 	size_t nLoc = list.size();
@@ -1515,6 +1519,10 @@ void HybridSelfIndex::locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ){
 						//cout << i << " pri_3* --> " << A[nn-1] << endl;
 					}
 				}
+			}
+			if (maxOcc > 0 && nn > maxOcc) {
+				*nOcc = 0;
+				return;
 			}
 		}
 
@@ -1574,7 +1582,7 @@ bool HybridSelfIndex::isOccInArr(ulong u, ulong len, ulong *A){
 }
 
 // M < m <= 2M
-void HybridSelfIndex::locateUpto2M(uchar *pat, uint m, ulong *nOcc, ulong **occ){
+void HybridSelfIndex::locateUpto2M(uchar *pat, uint m, ulong *nOcc, ulong **occ, size_t maxOcc){
 	ulong *QL, *QR, i, j, l, x;
 	string query = string((char *)pat);
 	size_t nLocL, nLocR;
@@ -1675,6 +1683,14 @@ void HybridSelfIndex::locateUpto2M(uchar *pat, uint m, ulong *nOcc, ulong **occ)
 				procX = true;
 			else
 				procY = true;
+		}
+		if (maxOcc > 0 && nn > maxOcc) {
+			*nOcc = 0;
+			delete [] QL;
+			delete [] QR;
+			delete [] L;
+			delete [] R;
+			return;
 		}
 
 		if (procX){
@@ -1778,6 +1794,14 @@ void HybridSelfIndex::locateUpto2M(uchar *pat, uint m, ulong *nOcc, ulong **occ)
 				procY = false;
 			}
 		}
+		if (maxOcc > 0 && nn > maxOcc) {
+			*nOcc = 0;
+			delete [] QL;
+			delete [] QR;
+			delete [] L;
+			delete [] R;
+			return;
+		}
 
 		if (didX){
 			if (i==nLocL){
@@ -1832,6 +1856,14 @@ void HybridSelfIndex::locateUpto2M(uchar *pat, uint m, ulong *nOcc, ulong **occ)
 					nn++;
 					//cout << "only x --> " << A[nn-1] << endl;
 				}
+				if (maxOcc > 0 && nn > maxOcc) {
+					*nOcc = 0;
+					delete [] QL;
+					delete [] QR;
+					delete [] L;
+					delete [] R;
+					return;
+				}
 			}
 
 			if (i < nLocL){
@@ -1873,6 +1905,14 @@ void HybridSelfIndex::locateUpto2M(uchar *pat, uint m, ulong *nOcc, ulong **occ)
 						A[nn] = x;
 						nn++;
 						//cout << "only y --> " << A[nn-1] << endl;
+					}
+					if (maxOcc > 0 && nn > maxOcc) {
+						*nOcc = 0;
+						delete [] QL;
+						delete [] QR;
+						delete [] L;
+						delete [] R;
+						return;
 					}
 				}
 			}
@@ -1927,7 +1967,7 @@ bool HybridSelfIndex::isOccInArr(ulong u, ulong len, ulong *A, ulong *pos){
 }
 
 
-void HybridSelfIndex::locateLargeM_b(uchar *pat, uint m, ulong *nOcc, ulong **occ){
+void HybridSelfIndex::locateLargeM_b(uchar *pat, uint m, ulong *nOcc, ulong **occ, size_t maxOcc){
 	PriOcc *LL;
 	uint ini, k, eps, dxI, *Dx;
 	ulong i, ii, j, l, x, u, pos, pI, nn, currN, *L, *Phr, *Pos, *Q;
@@ -2139,7 +2179,6 @@ void HybridSelfIndex::locateLargeM_b(uchar *pat, uint m, ulong *nOcc, ulong **oc
 				nn++;
 				//cout << x << " C--> " << L[nn-1] << endl;
 			}
-
 		}
 		LL[j].n = nn;
 		currN += nn;
@@ -2456,6 +2495,16 @@ void HybridSelfIndex::locateLargeM_b(uchar *pat, uint m, ulong *nOcc, ulong **oc
 				A[nn] = x;
 				nn++;
 				//cout << " Pri x = " << x << endl;
+			}
+			if (maxOcc > 0 && nn > maxOcc) {
+				*nOcc = 0;
+				delete [] LL[i].L;
+				delete [] LL[i].Phr;
+				delete [] LL[i].Pos;
+				delete [] LL[i].Dx;
+				delete [] LL[i].B;
+				delete [] LL;
+				return;
 			}
 		}
 

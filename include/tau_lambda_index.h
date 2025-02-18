@@ -502,12 +502,12 @@ void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &resu
             uchar* p = new uchar[pattern.size() + 1];
             for (size_t i = 0, e = pattern.size(); i < e; i++) { p[i] = (uchar)(pattern[i]); }
             p[pattern.size()] = '\0';
-            hybrid_index->locate(p, lambda, &nOcc, &occ);
+            hybrid_index->locate(p, lambda, &nOcc, &occ, tau_u);
             if (tau_l <= nOcc) {
                 results.resize(nOcc);
                 for (size_t i = 0; i < nOcc; i++) { results[i] = occ[i]; }
             }
-            delete[] p;
+            delete[] p, occ;
         }
     }
 }

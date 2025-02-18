@@ -77,7 +77,7 @@ public:
     void serialized(){ index->saveStructure(); }
     void build(char* inputFilePath, uint M, char* outputFolderPath);
     void load(const std::string &inputFolderPath);
-    void locate(uchar *pat, uint m, ulong *nOcc, ulong **occ);
+    void locate(uchar *pat, uint m, ulong *nOcc, ulong **occ, size_t tau_u = 0);
 };
 
 void hybrid::LZ_parsing(const std::string &rawTextPath) {
@@ -135,6 +135,6 @@ void hybrid::load(const std::string &inputFolderPath) {
     delete[] folderPath;
 }
 
-void hybrid::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ) {
-    index->locate(pat, m, nOcc, occ);
+void hybrid::locate(uchar *pat, uint m, ulong *nOcc, ulong **occ, size_t tau_u) {
+    index->locate(pat, m, nOcc, occ, tau_u);
 }

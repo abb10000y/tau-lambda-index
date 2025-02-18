@@ -106,14 +106,14 @@ private:
 	ulong searchPhraFilTxt(ulong x, uint *dx);
 	ulong searchPhraTxt(ulong x, ulong *pos, uint *len);
 
-	void locateAChar(uchar *pat, ulong *nOcc, ulong **occ);
-	void locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ);
+	void locateAChar(uchar *pat, ulong *nOcc, ulong **occ, size_t maxOcc = 0);
+	void locateUptoM(uchar *pat, uint m, ulong *nOcc, ulong **occ, size_t maxOcc = 0);
 	void setTopMinQ(ulong *Q, ulong pos);
 	bool isOccInArr(ulong u, ulong len, ulong *A);
-	void locateUpto2M(uchar *pat, uint m, ulong *nOcc, ulong **occ);
+	void locateUpto2M(uchar *pat, uint m, ulong *nOcc, ulong **occ, size_t maxOcc = 0);
 
 	bool isOccInArr(ulong u, ulong len, ulong *A, ulong *pos);
-	void locateLargeM_b(uchar *pat, uint m, ulong *nOcc, ulong **occ);
+	void locateLargeM_b(uchar *pat, uint m, ulong *nOcc, ulong **occ, size_t maxOcc = 0);
 
 	void extract(ulong sp, ulong len, uchar *A);
 
@@ -153,7 +153,7 @@ public:
 	HybridSelfIndex(char dirSaveLoad[300]);
 
 	// writes in *nOcc the number of occurrences of the pattern *pat[0..m-1] allocating these in **occ.
-	void locate(uchar *pat, uint m, ulong *nOcc, ulong **occ);
+	void locate(uchar *pat, uint m, ulong *nOcc, ulong **occ, size_t maxOcc = 0);
 
 	// extracts the 'len' characters that represent the original segment T[sp.. sp+len-1] and allocates these into A[0...len-1]
 	void extract(ulong sp, ulong len, uchar **A);
