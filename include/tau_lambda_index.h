@@ -24,14 +24,20 @@
 #include "self_indexes/LMS-based-self-index-LPG_grid/include/lpg/lpg_index.hpp"
 #include "self_indexes/LMS-based-self-index-LPG_grid/third-party/CLI11.hpp"
 #include "self_indexes/multi-layer-figiss/src/components/Index.h"
+#include "self_indexes/hybrid/hybrid.h"
 #include "compact_suffix_trie.h"
+
+#ifndef ulong
+#define ulong unsigned long
+#endif
 
 enum class index_types {
     r_index_type = 1,
     lz77_type = 2,
     LMS_type = 3,
     old_tau_lambda_type = 4,
-    compact_suffix_trie = 5
+    compact_suffix_trie = 5,
+    hybrid = 6
 };
 
 class tau_lambda_index {
@@ -40,6 +46,7 @@ public:
     tau_lambda_index(std::string &mf_path);
     tau_lambda_index(std::string &mf_path, index_types index_type);
     tau_lambda_index(std::string &mf_path, std::string &index_path, index_types index_type);
+    tau_lambda_index(std::string &mf_path, std::string &index_path, std::string &outputFolder, index_types index_type, uint M);
     void serialize(std::ofstream &out);
     void load(std::ifstream &in, std::string inputIndexPath);
     void locate(std::ifstream &in, std::ofstream &out);
@@ -153,6 +160,7 @@ private:
     lpg_index lms;
     Index* old_tau_lambda;
     compact_suffix_trie* location_trie;
+    hybrid* hybrid_index;
 
     void load_min_factors(std::string &mf_path);
     void build_XBWT(const std::string &text);
@@ -348,8 +356,33 @@ tau_lambda_index::tau_lambda_index(std::string &mf_path, std::string &index_path
         char *in = new char[maskedTextPath.size() + 1], *out = new char[index_path.size() + 1];
         std::strcpy(in, maskedTextPath.c_str());
         std::strcpy(out, index_path.c_str());
-        //lz77 = lz77index::static_selfindex_lz77::build(in, out, br, bs, ss);
         lz77 = lz77index::static_selfindex_lz77::build(in, out, br, bs, ss);
+        delete[] in, out;
+    }
+
+    if (std::remove(maskedTextPath.c_str()) != 0) {
+        std::cerr << "Not able to delete the masked text tmp file" << std::endl;
+        return;
+    }
+}
+
+// Constructor for hybrid
+tau_lambda_index::tau_lambda_index(std::string &mf_path, std::string &index_path, std::string &outputFolder, index_types index_type, uint M): index_type(index_type) {
+    load_min_factors(mf_path);
+    load_Text(text, inputTextPath);
+
+    build_XBWT(text);
+    std::string maskedTextPath = "tmpMaskedText", maskedText;
+    gen_masked_text(text, maskedText);
+    output_Text(maskedText, maskedTextPath);
+
+    if (index_type == index_types::hybrid) {
+        char *file = new char[maskedTextPath.size()], *out = new char[outputFolder.size()];
+        strcpy(file, maskedTextPath.c_str());
+        strcpy(out, outputFolder.c_str());
+        hybrid_index = new hybrid();
+        hybrid_index->build(file, M, out);
+        delete[] file, out;
     }
 
     if (std::remove(maskedTextPath.c_str()) != 0) {
@@ -381,6 +414,8 @@ void tau_lambda_index::serialize(std::ofstream &out) {
             lms.serialize(out, NULL, "");
         } else if (index_type == index_types::compact_suffix_trie) {
             location_trie->serialize(out);
+        } else if (index_type == index_types::hybrid) {
+            hybrid_index->serialized();
         }
     }
 }
@@ -418,6 +453,10 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
         } else if (index_type == index_types::compact_suffix_trie) {
             location_trie = new compact_suffix_trie();
             location_trie->load(in);
+        } else if (index_type == index_types::hybrid) {
+            hybrid_index = new hybrid();
+            std::string indexOutFolderDir= "./" + inputIndexPath + "_hybrid/";
+            hybrid_index->load(indexOutFolderDir);
         }
     }
 }
@@ -451,22 +490,30 @@ void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &resu
                 results.resize(tmp->size());
                 for (size_t i = 0; i < tmp->size(); i++) { results[i] = static_cast<uint64_t>((*tmp)[i]); }
             }
+            delete[] p;
         } else if (index_type == index_types::LMS_type) {
             std::set<lpg_index::size_type> tmp;
             lms.locate(pattern, tmp);
             if (tmp.size() >= tau_l) {
                 for (auto r : tmp) { results.push_back(r); }
             }
+        } else if (index_type == index_types::hybrid) {
+            ulong nOcc, *occ;
+            uchar* p = new uchar[pattern.size() + 1];
+            for (size_t i = 0, e = pattern.size(); i < e; i++) { p[i] = (uchar)(pattern[i]); }
+            p[pattern.size()] = '\0';
+            hybrid_index->locate(p, lambda, &nOcc, &occ);
+            if (tau_l <= nOcc) {
+                results.resize(nOcc);
+                for (size_t i = 0; i < nOcc; i++) { results[i] = occ[i]; }
+            }
+            delete[] p;
         }
     }
 }
 
 void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<uint64_t> &results) {
     results.clear();
-    // sdsl::int_vector<> pattern_int;
-    // pattern_int.width(64);
-    // pattern_int.resize(pattern.size());
-    // for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[static_cast<unsigned char>(pattern[i]) + t_symbol]; }
     
     if (index_type == index_types::r_index_type) {
         results = r_index->locate_all_tau(pattern, tau_l, tau_u);
@@ -485,6 +532,17 @@ void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<
         if (tau_l <= tmp.size() && tmp.size() <= tau_u) {
             for (auto r : tmp) { results.push_back(r); }
         }
+    } else if (index_type == index_types::hybrid) {
+        ulong nOcc, *occ;
+        uchar* p = new uchar[pattern.size() + 1];
+        for (size_t i = 0, e = pattern.size(); i < e; i++) { p[i] = (uchar)(pattern[i]); }
+        p[pattern.size()] = '\0';
+        hybrid_index->locate(p, lambda, &nOcc, &occ);
+        if (tau_l <= nOcc && nOcc <= tau_u) {
+            results.resize(nOcc);
+            for (size_t i = 0; i < nOcc; i++) { results[i] = occ[i]; }
+        }
+        delete[] p;
     }
 }
 

@@ -69,6 +69,13 @@
         "random": "cpp",
         "condition_variable": "cpp",
         "iterator": "cpp",
-        "version": "cpp"
+        "version": "cpp",
+        "any": "cpp",
+        "codecvt": "cpp",
+        "csignal": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "span": "cpp",
+        "valarray": "cpp"
     }
 }
