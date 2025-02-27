@@ -189,8 +189,8 @@ std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
     std::string pattern_suffix = pattern.substr(start_pattern, pattern.size() - start_pattern); // begin of factor to the end of pattern
     std::string pattern_prefix = pattern.substr(0, factor_end_in_pattern + 1); // begin of pattern to end of factor TODO +1 or not?
 
-    std::vector<size_t> forward_factors = forward_location_tree.match(pattern_suffix, lambda);
-    std::vector<size_t> reverse_factors = reverse_location_tree.match(pattern_prefix, lambda);
+    std::vector<size_t> forward_factors = forward_location_tree.match(pattern_suffix, pattern_suffix.size());
+    std::vector<size_t> reverse_factors = reverse_location_tree.match(pattern_prefix, pattern_prefix.size());
     std::set<size_t> forward_result(forward_factors.begin(), forward_factors.end()); // TODO set -> unordered_set for better performance
 
     for (auto start_text : reverse_factors) {
