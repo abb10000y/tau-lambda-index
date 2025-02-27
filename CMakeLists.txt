@@ -65,7 +65,8 @@ set(COMMON_LIBS
     ${LIB_INCLUDE_PATH}/lib/libsdsl.a 
     ${LIB_INCLUDE_PATH}/lib/libdivsufsort.a 
     ${LIB_INCLUDE_PATH}/lib/libdivsufsort64.a
-    /Users/zhaozhewei/Desktop/codes/library/rmq/rmqrmmBP.a
+    # include/rmq/rmqrmmBP.a
+    rmqrmmBP
 )
 
 add_subdirectory(include/rmq)

@@ -25,8 +25,8 @@ int main(int argc, char* argv[]) {
     }
     std::string outputLogPath;
     size_t M;
-    if (argc == 5) { outputLogPath = argv[4]; }
-    if (argc == 6) { M = std::stoul(argv[5]); }
+    if (argc >= 5) { outputLogPath = argv[4]; }
+    if (argc >= 6) { M = std::stoul(argv[5]); }
 
     std::ofstream outputFile(outputIndexPath);
     if (!outputFile.is_open()) {
@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::ofstream outputLogFile(outputLogPath);
-    if (argc == 5 && !outputLogFile.is_open()) {
+    if (argc >= 5 && !outputLogFile.is_open()) {
         std::cerr << "Error: Could not open output file " << outputLogPath << std::endl;
         return 1;
     }
@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
     idx->serialize(outputFile);
     t2 = std::chrono::steady_clock::now();
 
-    if (argc == 5) {
+    if (argc >= 5) {
         idx->log(outputLogFile);
         outputLogFile << "consumed time (us): " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << "\n";
         outputLogFile.close();
