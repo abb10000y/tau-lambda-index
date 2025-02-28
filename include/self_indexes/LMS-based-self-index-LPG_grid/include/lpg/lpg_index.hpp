@@ -624,6 +624,8 @@ public:
 
         sdsl::remove(input_file + "-mem.csv");
         sdsl::remove(input_file + "build-time.csv");
+        std::string tmp(temp);
+        std::filesystem::remove_all(tmp);
     }
 
     lpg_index() = default;
