@@ -9,13 +9,15 @@
 int main(int argc, char* argv[]) {
     if (argc < 4) {
         std::cerr << "Usage: " << argv[0] 
-                  << " [input index path] [input pattern path] [output results path]" << std::endl;
+                  << " [input index path] [input pattern path] [output results path] [xbwt only](0/1, optional)" << std::endl;
         return 1;
     }
 
     std::string inputIndexPath = argv[1];
     std::string inputPatternPath = argv[2];
     std::string outputResultPath = argv[3];
+    bool xbwt_only = 0;
+    if (argc >= 5) { xbwt_only = (std::stoi(argv[4]) == 1); }
 
     std::ifstream inputIndex(inputIndexPath);
     if (!inputIndex.is_open()) {
@@ -37,8 +39,8 @@ int main(int argc, char* argv[]) {
 
     // create a tau-lambda-index instance and operate it
     tau_lambda_index* idx = new tau_lambda_index();
-    idx->load(inputIndex, inputIndexPath);
-    idx->locate(inputPatternFile, outputResultFile);
+    idx->load(inputIndex, inputIndexPath, xbwt_only);
+    idx->locate(inputPatternFile, outputResultFile, xbwt_only);
 
     inputIndex.close();
     inputPatternFile.close();

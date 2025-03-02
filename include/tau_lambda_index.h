@@ -48,8 +48,8 @@ public:
     tau_lambda_index(std::string &mf_path, std::string &index_path, index_types index_type);
     tau_lambda_index(std::string &mf_path, std::string &index_path, std::string &outputFolder, index_types index_type, uint M);
     void serialize(std::ofstream &out);
-    void load(std::ifstream &in, std::string inputIndexPath);
-    void locate(std::ifstream &in, std::ofstream &out);
+    void load(std::ifstream &in, std::string inputIndexPath, bool xbwt_only = false);
+    void locate(std::ifstream &in, std::ofstream &out, bool xbwt_only = false);
     double get_masked_ratio() { return masked_ratio; }
     void log(std::ofstream& out) {
         out << "[" << inputTextPath << "]\n";
@@ -165,8 +165,8 @@ private:
     void load_min_factors(std::string &mf_path);
     void build_XBWT(const std::string &text);
     void gen_masked_text(const std::string &text, std::string &masked_text);
-    void _locate(std::string &pattern, std::vector<uint64_t> &results);
-    void _locate_original_index(std::string &pattern, std::vector<uint64_t> &results);
+    void _locate(std::string &pattern, std::vector<uint64_t> &results, bool xbwt_only = false);
+    void _locate_original_index(std::string &pattern, std::vector<uint64_t> &results, bool xbwt_only = false);
     void load_Text(std::string &text, std::string &textPath) {
         std::ifstream text_in(textPath);
         if (!text_in.is_open()) {
@@ -420,7 +420,7 @@ void tau_lambda_index::serialize(std::ofstream &out) {
     }
 }
 
-void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
+void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath, bool xbwt_only) {
     size_t length;
     in.read(reinterpret_cast<char*>(&length), sizeof(length));
     inputTextPath.resize(length);
@@ -430,38 +430,43 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath) {
     sdsl::read_member(tau_u, in);
     if (tau_u == 0) { is_original_index = true; }
     sdsl::read_member(lambda, in);
+    if (xbwt_only && (index_type == index_types::old_tau_lambda_type || is_original_index)) {
+        throw std::invalid_argument("no xbwt for this configuration.");
+    }
     if (index_type == index_types::old_tau_lambda_type) {
         load_Text(text, inputTextPath);
         old_tau_lambda = new Index(text);
         old_tau_lambda->load(in);
     } else {
         sdsl::read_member(masked_ratio, in);
-        if (tau_u > 0) {
+        if (!is_original_index) {
             symbol_table_.Load(in);
             xbwt->Load(in);
         }
-        if (index_type == index_types::r_index_type) {
-            r_index = new ri::r_index<>();
-            r_index->load(in);
-        } else if (index_type == index_types::lz77_type) {
-            std::string lz77Path = inputIndexPath + "_lz77";
-            FILE* fd = fopen(lz77Path.c_str(), "r");
-            lz77 = lz77index::static_selfindex_lz77::load(fd);
-            fclose(fd);
-        } else if (index_type == index_types::LMS_type) {
-            lms.load(in);
-        } else if (index_type == index_types::compact_suffix_trie) {
-            location_trie = new compact_suffix_trie();
-            location_trie->load(in);
-        } else if (index_type == index_types::hybrid) {
-            hybrid_index = new hybrid();
-            std::string indexOutFolderDir= "./" + inputIndexPath + "_hybrid/";
-            hybrid_index->load(indexOutFolderDir);
+        if (!xbwt_only) {
+            if (index_type == index_types::r_index_type) {
+                r_index = new ri::r_index<>();
+                r_index->load(in);
+            } else if (index_type == index_types::lz77_type) {
+                std::string lz77Path = inputIndexPath + "_lz77";
+                FILE* fd = fopen(lz77Path.c_str(), "r");
+                lz77 = lz77index::static_selfindex_lz77::load(fd);
+                fclose(fd);
+            } else if (index_type == index_types::LMS_type) {
+                lms.load(in);
+            } else if (index_type == index_types::compact_suffix_trie) {
+                location_trie = new compact_suffix_trie();
+                location_trie->load(in);
+            } else if (index_type == index_types::hybrid) {
+                hybrid_index = new hybrid();
+                std::string indexOutFolderDir= "./" + inputIndexPath + "_hybrid/";
+                hybrid_index->load(indexOutFolderDir);
+            }
         }
     }
 }
 
-void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &results) {
+void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &results, bool xbwt_only) {
     results.clear();
     sdsl::int_vector<> pattern_int;
     pattern_int.width(8);
@@ -469,7 +474,9 @@ void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &resu
     size_t p_len = pattern.length();
     for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[static_cast<unsigned char>(pattern[i]) + t_symbol]; }
     // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
-    if (index_type == index_types::old_tau_lambda_type && p_len <= lambda) {
+    if (xbwt_only) {
+        xbwt->match_if_exist(pattern_int);
+    } else if (index_type == index_types::old_tau_lambda_type && p_len <= lambda) {
         std::vector<size_t> tmp = old_tau_lambda->location_tree_search(pattern);
         for (auto r : tmp) { results.push_back(r); }
     } else if (p_len <= lambda && index_type == index_types::compact_suffix_trie) {
@@ -512,7 +519,7 @@ void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &resu
     }
 }
 
-void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<uint64_t> &results) {
+void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<uint64_t> &results, bool xbwt_only) {
     results.clear();
     
     if (index_type == index_types::r_index_type) {
@@ -546,7 +553,7 @@ void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<
     }
 }
 
-void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
+void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out, bool xbwt_only) {
     std::chrono::steady_clock::time_point t1, t2;
 
     std::string header;
@@ -579,11 +586,11 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out) {
         std::vector<uint64_t> results;
         if (is_original_index) {
             t1 = std::chrono::steady_clock::now();
-            _locate_original_index(pattern, results);
+            _locate_original_index(pattern, results, xbwt_only);
             t2 = std::chrono::steady_clock::now();
         } else {
             t1 = std::chrono::steady_clock::now();
-            _locate(pattern, results);
+            _locate(pattern, results, xbwt_only);
             t2 = std::chrono::steady_clock::now();
         }
         
