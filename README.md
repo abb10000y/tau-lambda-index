@@ -13,6 +13,7 @@ To gengerate the tau-lambda index of the text (need to gen the minimal factors f
     - 3: LMS
     - 4: DCC version
     - 5: compact_suffix_trie
+    - 6: hybrid
 
 To generate query patterns: (pattern length is equal to $\lambda$)
 ./gen_pattern [input mf path] [output pattern path] [pattern counts]
