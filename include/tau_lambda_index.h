@@ -106,15 +106,6 @@ public:
             if (s < n) { without_candidates.push_back({s, n - 1}); }
         }
         
-        // std::vector<bool> chk(n, false);
-        // for (auto [i, j] : with_candidates)
-        //     for (size_t k = i; k <= j; k++)
-        //         chk[k] = true;
-        // for (auto [i, j] : without_candidates)
-        //     for (size_t k = i; k <= j; k++)
-        //         if (chk[k] == true)
-        //             std::cout << "error\n";
-        
         // random setting
         std::random_device rd;
         std::mt19937 gen(rd());
@@ -147,7 +138,7 @@ private:
     index_types index_type;
     std::string inputTextPath, text;
     double masked_ratio;
-    XBWT* xbwt {new XBWT()}; // TODO: memory leak
+    std::unique_ptr<XBWT> xbwt = std::make_unique<XBWT>();
     SymbolTable symbol_table_;
     std::vector<std::pair<size_t, size_t>> min_factors; // TODO: change to local variable?
     //std::unordered_set<char> delimiters; // TODO: no need?
@@ -260,7 +251,7 @@ void tau_lambda_index::build_XBWT(const std::string &text) {
             concated_mf.push_back(t_symbol);
         }
         sdsl::int_vector<> concated_mf_int_vector;
-        concated_mf_int_vector.width(64); // TODO: change to the smallest bits usage
+        concated_mf_int_vector.width(8);
         concated_mf_int_vector.resize(concated_mf.size());
         for (size_t i = 0; i < concated_mf.size(); i++) { concated_mf_int_vector[i] = concated_mf[i]; }
         sdsl::append_zero_symbol(concated_mf_int_vector);
@@ -313,7 +304,7 @@ tau_lambda_index::tau_lambda_index(std::string &mf_path, index_types index_type)
         old_tau_lambda = new Index(text, min_factors, tau_l, tau_u, lambda);
     } else if (index_type == index_types::compact_suffix_trie) {
         build_XBWT(text);
-        location_trie = new compact_suffix_trie(symbol_table_, xbwt, min_factors, text, lambda);
+        location_trie = new compact_suffix_trie(symbol_table_, xbwt.get(), min_factors, text, lambda);
     } else {
         build_XBWT(text);
         std::string maskedTextPath = "tmpMaskedText", maskedText;
@@ -473,7 +464,6 @@ void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &resu
     pattern_int.resize(pattern.size());
     size_t p_len = pattern.length();
     for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = symbol_table_[static_cast<unsigned char>(pattern[i]) + t_symbol]; }
-    // auto [start_pattern, length] = xbwt->match_pos_in_pattern(pattern_int);
     if (xbwt_only) {
         xbwt->match_if_exist(pattern_int);
     } else if (index_type == index_types::old_tau_lambda_type && p_len <= lambda) {
@@ -559,8 +549,6 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out, bool xbwt_o
     std::string header;
 	std::getline(in, header);
 
-	// size_t n = get_number_of_patterns(header);
-	// size_t m = get_patterns_length(header);
     size_t n = get_pattern_info("number=", header);
     size_t m = get_pattern_info("length=", header);
     if (is_original_index) {
@@ -605,7 +593,6 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out, bool xbwt_o
         total_cnt += results.size();
     }
 
-    // if (total_cnt == 0) { total_cnt = 1; } // for patterns without min_factor -> total_cnt == 0
     out << "time(us): " << total_time << "\n";
     out << "occ: " << total_cnt << "\n";
 }

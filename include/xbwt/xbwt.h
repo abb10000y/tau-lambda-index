@@ -15,7 +15,6 @@
 #include "../symbol_table/symbol_bucket_offsets.h"
 #include "../symbol_table/symbol_table.h"
 #include <sdsl/qsufsort.hpp>
-#include <chrono>
 
 class XBWT
 {
@@ -30,7 +29,6 @@ private:
         typename sdsl::sd_vector<>::select_1_type,
         sdsl::wt_ap<>
     > L;
-    //sdsl::wt_ap<> L_wtap; // TODO: to be deleted
     sdsl::bit_vector P_bv;  // 1 for '(', 0 for ')'
     sdsl::bp_support_sada<> P;
     sdsl::bit_vector last;
@@ -52,14 +50,6 @@ private:
         return (std::get<0>(range) < std::get<1>(range));
     }
 
-    /*
-    void print(xbwt_range range, bool isL) { // TODO: to be deleted
-        if (isL) { std::cout << "[L]\t" ;}
-        else { std::cout << "[pi]\t"; }
-        std::cout << "l, r: " << std::get<0>(range) << ", " << std::get<1>(range) << "\n";
-    }
-    void processTime(std::chrono::steady_clock::time_point &t1, std::chrono::steady_clock::time_point &t2, std::string s); // TODO: to be deleted or integerated to "utility.h"
-    */
 public:
     XBWT();
     ~XBWT(){};
@@ -73,9 +63,7 @@ public:
     bool match_if_exist(const sdsl::int_vector<>& pattern);
     void failureLink(size_t& l, size_t& r);
     void Serialize (std::ostream &out);
-    //void Serialize_Partition (std::string const &path); // TODO: to be deleted
     void Load (std::istream &in);
-    //void Load_Partition (std::string const &path); // TODO: to be deleted
 
     size_t getP_size() {return P.size();}
     std::vector<size_t> getC() {
@@ -127,16 +115,6 @@ void XBWT::failureLink(size_t& l, size_t& r) {
     r = last_select(last_rank(l) + 1) + 1;
 }
 
-/*
-void XBWT::processTime(std::chrono::steady_clock::time_point &t1, std::chrono::steady_clock::time_point &t2, std::string s) {
-    t2 = std::chrono::steady_clock::now();
-        // std::cout << s << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns"; // "comsum time (ns):;
-        std::cout << s << std::chrono::duration_cast<std::chrono::minutes>(t2 - t1).count() << " mins"; // "comsum time (mins):;
-        std::cout << "\n";
-    t1 = std::chrono::steady_clock::now();
-}
-*/
-
 void XBWT::insert(sdsl::int_vector<>& text, uint64_t effective_alphabet_width, uint64_t effective_alphabet_size) {
     std::chrono::steady_clock::time_point t1, t2;
     t1 = std::chrono::steady_clock::now();
@@ -145,12 +123,8 @@ void XBWT::insert(sdsl::int_vector<>& text, uint64_t effective_alphabet_width, u
     // appending '0' to text is necessary for the s.sort(), however we don't want '0' appearing in xbwt
     // hence we will skip 'the 1st element in sa' and 'the last element in text'
     if (text[text.size()-1] != 0) { sdsl::append_zero_symbol(text); }
-//processTime(t1, t2, "chk7_0: ");
     sdsl::int_vector<> sa;
-    // sdsl::qsufsort::sorter<sdsl::int_vector<>> s;
-    // s.sort(sa, text);
     sdsl::qsufsort::construct_sa(sa, text);
-//processTime(t1, t2, "chk7_1: ");
 
     // MR, modified Kasai alg.
     std::vector<size_t> RCP;
@@ -175,23 +149,9 @@ void XBWT::insert(sdsl::int_vector<>& text, uint64_t effective_alphabet_width, u
 
     // Construct L, Last, and P from MR
 
-    /*
-    // TODO: a better alg. for constructing P
-    auto isPrefix = [&](int a, int b) {
-        int i = a, j = b;
-        while (text[i] != t_offset && text[j] != t_offset && text[i] == text[j]) {
-            i++;
-            j++;
-        }
-        return text[i] == t_offset;
-    };
-    */
-//processTime(t1, t2, "chk7_2: ");
-
     std::vector<uint64_t> L_vector;
     std::vector<bool> last_vector, P_vector;
     sdsl::int_vector<> C_vector;
-    // std::stack<size_t> stk; // store the first index of pi
     std::stack<std::pair<size_t, size_t>> stk;
     MR.push_back(1);
     for (size_t i = 0, prev = 0; i <= len; i++) {
@@ -210,14 +170,6 @@ void XBWT::insert(sdsl::int_vector<>& text, uint64_t effective_alphabet_width, u
 
             // P
             if (i < len) {
-                /*
-                while (!stk.empty() && !isPrefix(stk.top(), sa[i + 1])) {  // +1 for skipping the '0'
-                    P_vector.push_back(0);
-                    stk.pop();
-                }
-                P_vector.push_back(1);
-                stk.push(sa[i + 1]);  // +1 for skipping the '0'
-                */
                 size_t l = RCP[i];
                 // size > 1 for the first element is empty string (less than 1)
                 // which should be the prefix of all substrings (always in stack)
@@ -240,29 +192,25 @@ void XBWT::insert(sdsl::int_vector<>& text, uint64_t effective_alphabet_width, u
         stk.pop();
     }
     MR.pop_back();
-//processTime(t1, t2, "chk7_3: ");
 
     // to succint data structure
     last.resize(last_vector.size());
     for (size_t i = 0; i < last_vector.size(); i++) last[i] = last_vector[i];
     last_rank = decltype(last_rank)(&last);
     last_select = decltype(last_select)(&last);
-//processTime(t1, t2, "chk7_4: ");
 
     sdsl::int_vector<> L_buffer;
     L_buffer.width(effective_alphabet_width);
     L_buffer.resize(L_vector.size());
     for (size_t i = 0; i < L_vector.size(); i++) L_buffer[i] = L_vector[i];
     sdsl::construct_im(L, L_buffer);
-    //sdsl::construct_im(L_wtap, L_buffer); // TODO: to be deleted
-//processTime(t1, t2, "chk7_5: ");
 
     sdsl::bit_vector bv_tmp (P_vector.size(), 0);
     for (size_t i = 0; i < P_vector.size(); i++) bv_tmp[i] = P_vector[i];
     P_bv = bv_tmp;
     sdsl::bp_support_sada<> tmp(&P_bv);
     P = tmp;
-//processTime(t1, t2, "chk7_6: ");
+
     C_vector.resize(alphabet_size + 1); // +1 for counting the # of last alphabet
     for (size_t i = 1, nodeCnt = 1; i <= alphabet_size; i++) {
         size_t cnt = L.rank(L.size(), i-1);
@@ -270,7 +218,6 @@ void XBWT::insert(sdsl::int_vector<>& text, uint64_t effective_alphabet_width, u
         C_vector[i] = nodeCnt;
     }
     C = decltype(C)(C_vector);
-//processTime(t1, t2, "chk7_7: ");
 }
 
 void XBWT::gen_subFactorCnt(sdsl::int_vector<> &lex_sl_rl_int_text, SymbolTable &symbol_table, uint64_t maxRunLength) {
@@ -298,7 +245,6 @@ void XBWT::gen_subFactorCnt(sdsl::int_vector<> &lex_sl_rl_int_text, SymbolTable 
             rfirst = rlast;
         }
     }
-    //std::cout << "symbol_table: " << symbol_table << "\n";
     for (size_t i = 2; i < alphabet_size; i++) {
         size_t mul = symbol_table.get_run_length(i, maxRunLength);
         size_t begin = C[i] - C[2] + 1, end = C[i+1] - C[2] + 1;
@@ -310,9 +256,6 @@ void XBWT::gen_subFactorCnt(sdsl::int_vector<> &lex_sl_rl_int_text, SymbolTable 
         subFactorCnt_bits_tmp[i] += subFactorCnt_bits_tmp[i-1];
         singleCharRunCnt_bits_tmp[i] += singleCharRunCnt_bits_tmp[i-1];
     }
-    //std::cout << "lex_sl_rl_int_text: " << lex_sl_rl_int_text << "\n";
-    //std::cout << "subFactorCnt_bits_tmp: " << subFactorCnt_bits_tmp << "\n";
-    //std::cout << "singleCharRunCnt_bits_tmp: " << singleCharRunCnt_bits_tmp << "\n";
     subFactorCnt_bits = decltype(subFactorCnt_bits)(std::begin(subFactorCnt_bits_tmp), std::end(subFactorCnt_bits_tmp));
     subFactorCnt.set_vector(&subFactorCnt_bits);
     singleCharRunCnt_bits = decltype(singleCharRunCnt_bits)(std::begin(singleCharRunCnt_bits_tmp), std::end(singleCharRunCnt_bits_tmp));
@@ -373,13 +316,10 @@ bool XBWT::DownwardNavigation(xbwt_range& L_range, size_t c) const{
 bool XBWT::UpwardNavigation(size_t& l, size_t& r) const{
     if (l == 0) return false; // root (empty string)
     size_t nodeCnt = last_rank(r) - 1; // -1 for 0-index 
-    // size_t c = C.getSymbol(nodeCnt + 1 + C[2] - 1); // +1 for rank (rightmost excluded)
     size_t c = C.getSymbol(nodeCnt+ C[2]);
-    //size_t c_cnt = nodeCnt - (C[c] - C[2] + 1) + 1; // 0-index
     size_t c_cnt = nodeCnt - C[c] + C[2];
     if (last_rank(L.select(c_cnt, c)) == 0) { l = 0; }
     else { l = last_select(last_rank(L.select(c_cnt, c))) + 1; }
-    // r = last_select(last_rank(L.select(cnt, c)) + 1) + 1;
     r = last_select(last_rank(l) + 1) + 1;
     return true;
 }
@@ -411,18 +351,10 @@ void XBWT::singleCharacterRunQuery(uint64_t rl_int_symbol, SymbolTable& runLengt
         C[l_rl_int_symbol] - C[2] + 1,
         C[r_rl_int_symbol] - C[2] + 1
     };
-    // std::cout << "l/r_rl_int_symbol: " << l_rl_int_symbol << ", " << r_rl_int_symbol << "\n";
-    // std::cout << "pi_range: " << std::get<0>(pi_range) << ", " << std::get<1>(pi_range) << "\n";
-    // {cnt * len, cnt}
     result = {
         singleCharRunCnt(std::get<1>(pi_range)) - singleCharRunCnt(std::get<0>(pi_range)),
         subFactorCnt(std::get<1>(pi_range)) - subFactorCnt(std::get<0>(pi_range))
     };
-    // std::cout << subFactorCnt(std::get<0>(pi_range)) << ", ";
-    // std::cout << subFactorCnt(std::get<1>(pi_range)) << ", ";
-    // std::cout << singleCharRunCnt(std::get<0>(pi_range)) << ", ";
-    // std::cout << singleCharRunCnt(std::get<1>(pi_range)) << "\n";
-    //return singleCharRunCnt(C[r_rl_int_symbol] - C[2] + 1) - singleCharRunCnt(C[l_rl_int_symbol] - C[2] + 1);
 }
 
 template <typename Iterator>
@@ -432,24 +364,18 @@ uint64_t XBWT::subFactorSuffixRangeQuery(Iterator rbegin, Iterator rend, SymbolT
         last_select(C[l_rl_int_symbol] - C[2] + 1) + 1,
         last_select(C[r_rl_int_symbol] - C[2] + 1) + 1
     };
-    // std::cout << "L_range: " << std::get<0>(L_range) << ", " << std::get<1>(L_range) << "\n";
     size_t cnt = 0;
     rend = std::next(rend); // range-query until the last character run
     auto it {std::prev(rbegin)};
     while (it != rend) {
-        //print(L_range, true);
         if (!DownwardNavigation(L_range, *it)) { return cnt; }
         it = std::prev(it);
     }
 
     l_rl_int_symbol = *rend, r_rl_int_symbol = runLength_symbol_table.max_of_this_alphabet(l_rl_int_symbol, maxRunLength); // [l, r)
-    //print(L_range, true);
-    // the last character run
     for (size_t rl_int_symbol = l_rl_int_symbol; rl_int_symbol < r_rl_int_symbol; rl_int_symbol++) {
         xbwt_range tmp_L_range {L_range};
-        //std::cout << "len: " << len << "\n";
         xbwt_range pi_range = L_range_to_pi_range(tmp_L_range, rl_int_symbol);
-        //print(pi_range, false);
         if (!IsNotEmptyRange(pi_range)) { continue; }
         cnt += subFactorCnt(std::get<1>(pi_range)) - subFactorCnt(std::get<0>(pi_range));
     }
@@ -463,8 +389,6 @@ void XBWT::suffixRangeQuery(Iterator rbegin, Iterator rend, Range &grammar_range
         last_select(C[l_rl_int_symbol] - C[2] + 1) + 1,
         last_select(C[r_rl_int_symbol] - C[2] + 1) + 1
     };
-    // std::cout << "L_range: " << std::get<0>(L_range) << ", " << std::get<1>(L_range) << "\n";
-    // xbwt_range L_range = {last_select(C[*rbegin] - C[2] + 1) + 1, last_select(C[(*rbegin) + 1] - C[2] + 1)};
     auto it {std::prev(rbegin)};
     while (it != rend) {
         if (!DownwardNavigation(L_range, *it)) { 
@@ -473,8 +397,6 @@ void XBWT::suffixRangeQuery(Iterator rbegin, Iterator rend, Range &grammar_range
         }
         it = std::prev(it);
     }
-    // std::cout << "L_range: " << std::get<0>(L_range) << ", " << std::get<1>(L_range) << "\n";
-    // std::cout << "l, r: " << L.rank(std::get<0>(L_range), t_offset) + 1 << ", " << L.rank(std::get<1>(L_range), t_offset) << "\n";
     grammar_range = {L.rank(std::get<0>(L_range), t_offset) + 1, L.rank(std::get<1>(L_range), t_offset)};
     if (std::get<0>(grammar_range) > std::get<1>(grammar_range)) {
         grammar_range = {1, 0};
@@ -489,7 +411,6 @@ void XBWT::prefixRangeQuery(Iterator begin, Iterator end, Range &grammar_range, 
         last_select(C[l_rl_int_symbol] - C[2] + 1) + 1,
         last_select(C[r_rl_int_symbol] - C[2] + 1) + 1
     };
-    //xbwt_range L_range = {last_select(C[*begin] - C[2] + 1) + 1, last_select(C[(*begin) + 1] - C[2] + 1)};
     auto it {std::next(begin)};
     while (it != end) {
         if (!DownwardNavigation(L_range, *it)) { 
@@ -540,7 +461,6 @@ std::ostream& operator<< (std::ostream &out, XBWT const &xbwt) {
 }
 
 std::pair<size_t, size_t> XBWT::pi_range_to_L_range(xbwt_range& pi_range) const {
-    // size_t L_left = last_select(std::get<0>(pi_range)) + 1, L_right = last_select(std::get<1>(pi_range)) + 1;
     return {
         last_select(std::get<0>(pi_range)) + 1,
         last_select(std::get<1>(pi_range)) + 1
@@ -548,120 +468,15 @@ std::pair<size_t, size_t> XBWT::pi_range_to_L_range(xbwt_range& pi_range) const 
 }
 
 std::pair<size_t, size_t> XBWT::L_range_to_pi_range(xbwt_range& L_range, size_t c) const {
-    // -(C[2]-1) shifting for skipping the C[1]('$'); (L.rank(l,c)+1) to count the i-th c in pi; -1 for the 0-index in pi
-    // size_t pi_left = C[c] - (C[2] - 1) + (L.rank(l, c) + 1) - 1;
-    // size_t pi_left = C[c] - C[2] + L.rank(std::get<0>(L_range), c) + 1, pi_right = C[c] - C[2] + L.rank(std::get<1>(L_range), c) + 1;
     return {
         C[c] - C[2] + L.rank(std::get<0>(L_range), c) + 1,
         C[c] - C[2] + L.rank(std::get<1>(L_range), c) + 1
     };
 }
 
-/*
-void XBWT::Serialize_Partition (std::string const &path) {
-    {
-        std::fstream out {path + "_L_wt_rlmn", std::ios_base::out | std::ios_base::trunc};
-        sdsl::write_member(alphabet_size, out);
-        L.serialize(out);
-        out.close();
-    }
-    {
-        std::fstream out {path + "_L_wt_ap", std::ios_base::out | std::ios_base::trunc};
-        L_wt_ap.serialize(out);
-        out.close();
-    }
-    {
-        std::fstream out {path + "_P", std::ios_base::out | std::ios_base::trunc};
-        P_bv.serialize(out);
-        P.serialize(out);
-        out.close();
-    }
-    {
-        std::fstream out {path + "_last", std::ios_base::out | std::ios_base::trunc};
-        last.serialize(out);
-        last_rank.serialize(out);
-        last_select.serialize(out);
-        out.close();
-    }
-    {
-        std::fstream out {path + "_C", std::ios_base::out | std::ios_base::trunc};
-        C.Serialize(out);
-        out.close();
-    }
-    {
-        std::fstream out {path + "_subFactorCnt_bits", std::ios_base::out | std::ios_base::trunc};
-        subFactorCnt_bits.serialize(out);
-        subFactorCnt.serialize(out);
-        out.close();
-    }
-}
-*/
-
-/*
-void XBWT::Load_Partition (std::string const &path) {
-    {
-        std::fstream in {path + "_L_wt_rlmn", std::ios_base::in};
-        sdsl::read_member(alphabet_size, in);
-        L.load(in);
-        in.close();
-    }
-    {
-        std::fstream in {path + "_L_wt_ap", std::ios_base::in};
-        L_wtap.load(in);
-        in.close();
-    }
-    {
-        std::fstream in {path + "_P", std::ios_base::in};
-        P_bv.load(in);
-        P.load(in, &P_bv);
-        in.close();
-    }
-    {
-        std::fstream in {path + "_last", std::ios_base::in};
-        last.load(in);
-        last_rank.load(in, &last);
-        last_select.load(in, &last);
-        in.close();
-    }
-    {
-        std::fstream in {path + "_C", std::ios_base::in};
-        C.Load(in);
-        in.close();
-    }
-    {
-        std::fstream in {path + "_subFactorCnt_bits", std::ios_base::in};
-        subFactorCnt_bits.load(in);
-        subFactorCnt.load(in, &subFactorCnt_bits);
-        in.close();
-    }
-}
-*/
-
-// void XBWT::match_pos_in_pattern(const sdsl::int_vector<>& pattern, size_t &offset, size_t &length, size_t &rank) {
-//     xbwt_range L_range = {0, last_select(1) + 1};
-//     //size_t l = 0, r = last_select(1) + 1; // rank will exclusive the right most position
-//     for (size_t i = 0; i < pattern.size(); i++) {
-//         size_t c = pattern[i];
-//         while (!DownwardNavigation(L_range, c) && std::get<0>(L_range) > 0) { failureLink(std::get<0>(L_range), std::get<1>(L_range)); }
-//         if (L[std::get<0>(L_range)] == 1) { 
-//             size_t len = nodeHeight(std::get<0>(L_range), std::get<1>(L_range));
-//             offset = i - len + 1;
-//             length = len;
-//             rank = L.rank(std::get<1>(L_range), 1);
-//             return;
-//         }
-//     }
-//     offset = length = rank = -1;
-// }
 
 std::pair<size_t, size_t> XBWT::match_pos_in_pattern(const sdsl::int_vector<>& pattern) {
-    // uint64_t t_offset = static_cast<uint64_t>(1); // terminate symbols // TODO: change to global variable
-    // sdsl::int_vector<> pattern_int;
-    // pattern_int.resize(pattern.size());
-    // for (size_t i = 0; i < pattern.size(); i++) { pattern_int[i] = pattern[i] + t_offset; }
-
     xbwt_range L_range = {0, last_select(1) + 1};
-    //size_t l = 0, r = last_select(1) + 1; // rank will exclusive the right most position
     for (size_t i = 0; i < pattern.size(); i++) {
         size_t c = pattern[i];
         while (!DownwardNavigation(L_range, c) && std::get<0>(L_range) > 0) { failureLink(std::get<0>(L_range), std::get<1>(L_range)); }
@@ -676,7 +491,6 @@ std::pair<size_t, size_t> XBWT::match_pos_in_pattern(const sdsl::int_vector<>& p
 void XBWT::match_pos_in_pattern(const sdsl::int_vector<>& pattern, size_t &offset, size_t &length, size_t &rank) {
     rank = 0;
     xbwt_range L_range = {0, last_select(1) + 1};
-    //size_t l = 0, r = last_select(1) + 1; // rank will exclusive the right most position
     for (size_t i = 0; i < pattern.size(); i++) {
         size_t c = pattern[i];
         while (!DownwardNavigation(L_range, c) && std::get<0>(L_range) > 0) { failureLink(std::get<0>(L_range), std::get<1>(L_range)); }
@@ -692,7 +506,6 @@ void XBWT::match_pos_in_pattern(const sdsl::int_vector<>& pattern, size_t &offse
 bool XBWT::match_if_exist(const sdsl::int_vector<>& pattern) {
     xbwt_range L_range = {0, last_select(1) + 1};
     bool result = false;
-    //size_t l = 0, r = last_select(1) + 1; // rank will exclusive the right most position
     for (size_t i = 0; i < pattern.size(); i++) {
         size_t c = pattern[i];
         while (!DownwardNavigation(L_range, c) && std::get<0>(L_range) > 0) { failureLink(std::get<0>(L_range), std::get<1>(L_range)); }
