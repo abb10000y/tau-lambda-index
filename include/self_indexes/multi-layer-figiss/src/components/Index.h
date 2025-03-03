@@ -183,7 +183,7 @@ std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
     }
 
     std::string_view pattern_view(pattern); // convert pattern to string_view for better performance
-    std::unordered_set<size_t> candidate_result;
+    std::vector<size_t> results;
 
     auto factor_end_in_pattern = start_pattern + length - 1; // end of factor in pattern
     std::string pattern_suffix = pattern.substr(start_pattern, pattern.size() - start_pattern); // begin of factor to the end of pattern
@@ -191,27 +191,18 @@ std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
 
     std::vector<size_t> forward_factors = forward_location_tree.match(pattern_suffix, pattern_suffix.size());
     std::vector<size_t> reverse_factors = reverse_location_tree.match(pattern_prefix, pattern_prefix.size());
-    std::set<size_t> forward_result(forward_factors.begin(), forward_factors.end()); // TODO set -> unordered_set for better performance
-
-    for (auto start_text : reverse_factors) {
-        if (forward_result.find(start_text) != forward_result.end()) {
-            size_t begin_pattern_in_text = start_text - start_pattern;
-            candidate_result.emplace(begin_pattern_in_text);
-        }
+    
+    std::sort(forward_factors.begin(), forward_factors.end());
+    std::sort(reverse_factors.begin(), reverse_factors.end());
+    results.resize(std::min(forward_factors.size(), reverse_factors.size()));
+    auto it = std::set_intersection(forward_factors.begin(), forward_factors.end(),
+    reverse_factors.begin(), reverse_factors.end(),
+    results.begin());
+    if (it - results.begin() <tau_l) {
+        results.clear();
+    } else {
+        results.resize(it - results.begin());
     }
-
-    // for each candidate result, check if it is a real result
-    std::vector<size_t> result;
-    if (result.size() >= tau_l) {
-        for (auto begin_pattern_in_text: candidate_result) {
-            std::string_view pattern_in_text = std::string_view(text).substr(begin_pattern_in_text, pattern.size());
-            if (pattern_in_text == pattern_view) {
-                result.emplace_back(begin_pattern_in_text);
-            }
-        }
-    }
-
-    if (result.size() < tau_l) { result.clear(); }
-
-    return result;
+    
+    return results;
 }
