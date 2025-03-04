@@ -11,6 +11,8 @@
 #include <stack>
 #include <fstream>
 #include <memory>
+#include <sdsl/bit_vectors.hpp>
+
 
 class Ac_automata {
 public:
@@ -20,7 +22,8 @@ public:
 
     // move assginment operator, to make Index class work, TODO better solution?
     Ac_automata& operator=(Ac_automata&& other) {
-        root = std::move(other.root);
+        // root = std::move(other.root);
+        node_vector = std::move(other.node_vector);
         return *this;
     }
 
@@ -34,7 +37,7 @@ public:
 
     // debugging info TODO remove
     size_t get_ac_size() {
-        return ac_size;
+        return node_vector.size();
     }
 
     void serialize(std::ofstream &out);
@@ -43,23 +46,24 @@ public:
 private:
     // define the node of the trie
     struct Node {
-        std::map<char, std::unique_ptr<Node>> children;
-        Node* fail; // pointer to the failure node
+        std::map<char, size_t> children;
+        // Node* fail; // pointer to the failure node
+        size_t fail = 0; // node_vector.size() as nullptr
 
-        bool is_min_factor;
+        bool is_min_factor = false;
         std::vector<size_t> positions; // positions of the matched min-factors in the text
-        size_t height; // height of the node in the trie, i.e. the length of the string represented by the node
+        size_t height = 0; // height of the node in the trie, i.e. the length of the string represented by the node
     };
 
-    std::unique_ptr<Node> root;
+    // std::unique_ptr<Node> root;
+    size_t root = 0;
+    std::vector<std::unique_ptr<Node>> node_vector;
     void construct_trie(const std::string& text, const std::vector<std::pair<size_t, size_t>>& min_factors);
     void construct_failure_links();
-
-    // debugging info TODO remove
-    size_t ac_size;
 };
 
 Ac_automata::Ac_automata(const std::string& text, const std::vector<std::pair<size_t, size_t>>& min_factors) {
+    std::cout << "Constructing AC_automaton" << std::endl;
     construct_trie(text, min_factors);
     construct_failure_links();
 }
@@ -68,42 +72,43 @@ Ac_automata::~Ac_automata() {
 }
 
 void Ac_automata::construct_trie(const std::string& text, const std::vector<std::pair<size_t, size_t>>& min_factors) {
-    ac_size = 0;
-    root = std::make_unique<Node>();
+    node_vector.push_back(std::make_unique<Node>());
     for (auto p : min_factors) {
         std::string_view factor = std::string_view(text).substr(p.first, p.second - p.first + 1);
-        Node* curr_node = root.get();
+        size_t cur = root;
         for (char c : factor) {
-            if (curr_node->children.find(c) == curr_node->children.end()) {
-                curr_node->children[c] = std::make_unique<Node>();
-                ++ac_size;
+            if (node_vector[cur]->children.find(c) == node_vector[cur]->children.end()) {
+                node_vector[cur]->children[c] = node_vector.size();
+                node_vector.emplace_back(std::make_unique<Node>());
             }
-            curr_node = curr_node->children[c].get();
+            cur = node_vector[cur]->children[c];
         }
-        curr_node->is_min_factor = true;
-        curr_node->positions.emplace_back(p.first);
-        curr_node->height = factor.size();
+        node_vector[cur]->is_min_factor = true;
+        node_vector[cur]->positions.emplace_back(p.first);
+        node_vector[cur]->height = factor.size();
     }
 }
 
 void Ac_automata::construct_failure_links() {
-    root->fail = nullptr;
-    std::queue<Node*> q;
-    q.push(root.get());
+    size_t null_link = node_vector.size();
+
+    node_vector[0]->fail = null_link;
+    std::queue<size_t> q;
+    q.push(root);
     while (!q.empty()) {
-        Node* curr_node = q.front();
+        size_t cur = q.front();
         q.pop();
-        for (const auto& p : curr_node->children) {
+        for (const auto& p : node_vector[cur]->children) {
             char c = p.first;
-            Node* child = p.second.get();
-            Node* fail_node = curr_node->fail;
-            while (fail_node != nullptr && fail_node->children.find(c) == fail_node->children.end()) {
-                fail_node = fail_node->fail;
+            size_t child = p.second;
+            size_t fail_node = node_vector[cur]->fail;
+            while (fail_node != null_link && node_vector[fail_node]->children.find(c) == node_vector[fail_node]->children.end()) {
+                fail_node = node_vector[fail_node]->fail;
             }
-            if (fail_node == nullptr) {
-                child->fail = root.get();
+            if (fail_node == null_link) {
+                node_vector[child]->fail = root;
             } else {
-                child->fail = fail_node->children[c].get();
+                node_vector[child]->fail = node_vector[fail_node]->children[c];
             }
             q.push(child);
         }
@@ -112,200 +117,171 @@ void Ac_automata::construct_failure_links() {
 
 std::vector<std::tuple<size_t, size_t, size_t>> Ac_automata::match(const std::string& pattern, bool match_all = false) {
     std::vector<std::tuple<size_t, size_t, size_t>> matched_min_factors;
-    Node* curr_node = root.get();
+    size_t cur = root, null_link = node_vector.size();
     for (size_t i = 0; i < pattern.size(); i++) {
         char c = pattern[i];
         
         // find the next node
-        while (curr_node != nullptr && curr_node->children.find(c) == curr_node->children.end()) {
-            curr_node = curr_node->fail;
+        while (cur != null_link && node_vector[cur]->children.find(c) == node_vector[cur]->children.end()) {
+            cur = node_vector[cur]->fail;
         }
 
-        if (curr_node == nullptr) {
-            curr_node = root.get();
+        if (cur == null_link) {
+            cur = root;
             continue;
         }
 
-        curr_node = curr_node->children[c].get();
+        cur = node_vector[cur]->children[c];
         
-        if (curr_node->is_min_factor) {
-            for (size_t pos : curr_node->positions) {
-                matched_min_factors.emplace_back(pos, i - curr_node->height + 1, curr_node->height);
+        if (node_vector[cur]->is_min_factor) {
+            for (size_t pos : node_vector[cur]->positions) {
+                matched_min_factors.emplace_back(pos, i - node_vector[cur]->height + 1, node_vector[cur]->height);
             }
             if (!match_all) {
                 break;
             }
         }
     }
-    return matched_min_factors;
+    return matched_min_factors;   
 }
 
 std::pair<size_t, size_t> Ac_automata::match_pos_in_pattern(const std::string& pattern) {
-    // return <start_pos_in_pat, length>
-
     std::vector<size_t> matched_min_factors_pos_in_text;
-    Node* curr_node = root.get();
+    size_t cur = root, null_link = node_vector.size();
     for (size_t i = 0; i < pattern.size(); i++) {
         char c = pattern[i];
         
         // find the next node
-        while (curr_node != nullptr && curr_node->children.find(c) == curr_node->children.end()) {
-            curr_node = curr_node->fail;
+        while (cur != null_link && node_vector[cur]->children.find(c) == node_vector[cur]->children.end()) {
+            cur = node_vector[cur]->fail;
         }
 
-        if (curr_node == nullptr) {
-            curr_node = root.get();
+        if (cur == null_link) {
+            cur = root;
             continue;
         }
 
-        curr_node = curr_node->children[c].get();
+        cur = node_vector[cur]->children[c];
         
-        if (curr_node->is_min_factor) {
-            return std::make_pair(i - curr_node->height + 1, curr_node->height);
+        if (node_vector[cur]->is_min_factor) {
+            return std::make_pair(i - node_vector[cur]->height + 1, node_vector[cur]->height);
         }
     }
-    return std::make_pair(-1, -1);
+    return std::make_pair(-1, -1);   
 }
 
 // output in binary format
 void Ac_automata::serialize(std::ofstream &out) {
-    using index_type = uint32_t;
+    std::unordered_map<size_t, size_t> nodeVectorIdx_to_levelOrder;
+    std::vector<bool> LOUDS_tmp, is_min_factor_tmp;
+    std::vector<size_t> label_tmp, position_tmp, position_cnt_tmp, height_tmp, failure_tmp;
+    size_t null_link = node_vector.size(), level_idx = 0;
+    nodeVectorIdx_to_levelOrder[null_link] = null_link;
+    
+    // transform into LOUDS representation
+    std::queue<size_t> que;
+    que.push(root);
+    while (!que.empty()) {
+        size_t cur = que.front();
+        que.pop();
+        LOUDS_tmp.emplace_back(1);
+        nodeVectorIdx_to_levelOrder[cur] = level_idx++;
 
-    std::unordered_map<Node*, index_type> node_id;
-    // dfs to assign id to each node
-    std::stack<Node*> s;
-    s.push(root.get());
-    index_type id = 0;
-    while (!s.empty()) {
-        Node* curr_node = s.top();
-        s.pop();
-        node_id[curr_node] = id++;
-        for (const auto& p : curr_node->children) {
-            s.push(p.second.get());
+        for (const auto &p : node_vector[cur]->children) {
+            LOUDS_tmp.emplace_back(0);
+            label_tmp.emplace_back(p.first);
+            que.push(p.second);
         }
-    }
 
-    // serialize
-    index_type node_num = node_id.size();
-    out.write(reinterpret_cast<char*>(&node_num), sizeof(node_num));
-    for (const auto& p: node_id) {
-        Node* node = p.first;
+        failure_tmp.emplace_back(nodeVectorIdx_to_levelOrder[node_vector[cur]->fail]);
 
-        index_type id = p.second;
-        bool is_min_factor = node->is_min_factor; // optimize, done
-        uint16_t height = node->height; // bound by lambda, 2^11
-        index_type fail_link_id;
-        uint8_t children_num = node->children.size(); // optimize, done
-        uint8_t positions_num = node->positions.size(); // bound by tau, 2^5
-
-        // combine is_min_factor and children_num into one byte
-        uint8_t is_min_factor_children_num = (is_min_factor << 7) | children_num;
-        // combine height and positions_num into one short
-        uint16_t height_positions_num = (height << 5) | positions_num;
+        is_min_factor_tmp.emplace_back(node_vector[cur]->is_min_factor);
         
-        // the fail link
-        if (node->fail == nullptr) {
-            fail_link_id = -1;
-        } else {
-            fail_link_id = node_id[node->fail];
-        }
-
-        // write primitive vars
-        out.write(reinterpret_cast<char*>(&id), sizeof(id));
-        // out.write(reinterpret_cast<char*>(&is_min_factor), sizeof(is_min_factor));
-        // out.write(reinterpret_cast<char*>(&height), sizeof(height));
-        out.write(reinterpret_cast<char*>(&fail_link_id), sizeof(fail_link_id));
-        // out.write(reinterpret_cast<char*>(&children_num), sizeof(children_num));
-        // out.write(reinterpret_cast<char*>(&positions_num), sizeof(positions_num)); // TODO optimize, fewer than tau
-
-        // write combined vars
-        out.write(reinterpret_cast<char*>(&is_min_factor_children_num), sizeof(is_min_factor_children_num));
-        out.write(reinterpret_cast<char*>(&height_positions_num), sizeof(height_positions_num));
-
-        for (const auto& p : node->children) {
-            char c = p.first;
-            index_type child_id = node_id[p.second.get()];
-            out.write(reinterpret_cast<char*>(&c), sizeof(c)); // TODO optimize
-            out.write(reinterpret_cast<char*>(&child_id), sizeof(child_id));
-        }
-
-        for (index_type pos : node->positions) {
-            out.write(reinterpret_cast<char*>(&pos), sizeof(pos));
-        }
+        position_cnt_tmp.emplace_back(node_vector[cur]->positions.size());
+        for (const auto p : node_vector[cur]->positions) { position_tmp.emplace_back(p); }
+        
+        height_tmp.emplace_back(node_vector[cur]->height);
     }
+
+    // transform into sdsl data structure
+    sdsl::bit_vector LOUDS, is_min_factor;
+    sdsl::int_vector<> label, position, position_cnt, height, failure;
+    LOUDS.resize(LOUDS_tmp.size());
+    for (size_t i = 0, e = LOUDS_tmp.size(); i < e; i++) { LOUDS[i] = LOUDS_tmp[i]; }
+    is_min_factor.resize(is_min_factor_tmp.size());
+    for (size_t i = 0, e = is_min_factor_tmp.size(); i < e; i++) { is_min_factor[i] = is_min_factor_tmp[i]; }
+    label.resize(label_tmp.size());
+    for (size_t i = 0, e = label_tmp.size(); i < e; i++) { label[i] = label_tmp[i]; }
+    position.resize(position_tmp.size());
+    for (size_t i = 0, e = position_tmp.size(); i < e; i++) { position[i] = position_tmp[i]; }
+    position_cnt.resize(position_cnt_tmp.size());
+    for (size_t i = 0, e = position_cnt_tmp.size(); i < e; i++) { position_cnt[i] = position_cnt_tmp[i]; }
+    height.resize(height_tmp.size());
+    for (size_t i = 0, e = height_tmp.size(); i < e; i++) { height[i] = height_tmp[i]; }
+    failure.resize(failure_tmp.size());
+    for (size_t i = 0, e = failure_tmp.size(); i < e; i++) { failure[i] = failure_tmp[i]; }
+    
+    sdsl::util::bit_compress(LOUDS);
+    sdsl::util::bit_compress(is_min_factor);
+    sdsl::util::bit_compress(label);
+    sdsl::util::bit_compress(position);
+    sdsl::util::bit_compress(position_cnt);
+    sdsl::util::bit_compress(height);
+    sdsl::util::bit_compress(failure);
+
+
+    // serializing
+    sdsl::write_member(null_link, out);
+    LOUDS.serialize(out);
+    is_min_factor.serialize(out);
+    label.serialize(out);
+    position.serialize(out);
+    position_cnt.serialize(out);
+    height.serialize(out);
+    failure.serialize(out);
 }
 
 // read in binary format
 void Ac_automata::load(std::ifstream &in) {
-    using index_type = uint32_t;
+    sdsl::bit_vector LOUDS, is_min_factor;
+    sdsl::int_vector<> label, position, position_cnt, height, failure;
+    size_t node_idx = 1, is_min_factor_idx = 0, label_idx = 0, position_idx = 0, position_cnt_idx = 0, height_idx = 0, failure_idx = 0, null_link;
 
-    // save id_node mapping, id_fail_link mapping, and id_children mapping, for first pass
-    std::unordered_map<index_type, Node*> id_node;
-    std::unordered_map<index_type, index_type> id_fail_link;
-    std::unordered_map<index_type, std::vector<std::pair<char, index_type>>> id_children;
+    sdsl::read_member(null_link, in);
+    LOUDS.load(in);
+    is_min_factor.load(in);
+    label.load(in);
+    position.load(in);
+    position_cnt.load(in);
+    height.load(in);
+    failure.load(in);
 
-    // deserialize
-    index_type node_num;
-    in.read(reinterpret_cast<char*>(&node_num), sizeof(node_num));
+    node_vector.resize(null_link);
 
-    // first pass
-    for (index_type i = 0; i < node_num; i++) {
-        index_type id;
-        bool is_min_factor; // improve
-        uint16_t height; // bound by lambda
-        index_type fail_link_id;
-        uint8_t children_num; // fewer than sigma
-        uint8_t positions_num; // bound by tau
+    std::cout << "(TBD) ac_size: " << null_link << std::endl;
+    std::cout << "(TBD) LOUDS.size: " << LOUDS.size() << std::endl;
+    
+    auto read_node_info = [&](size_t cur, size_t idx) {
+        // if (failure[failure_idx] != null_link && failure[failure_idx] >= idx) { throw std::invalid_argument("a"); }
+        node_vector[cur]->fail = failure[failure_idx++];
 
-        // combined vars
-        uint8_t is_min_factor_children_num;
-        uint16_t height_positions_num;
+        node_vector[cur]->is_min_factor = is_min_factor[is_min_factor_idx++];
 
-        // read primitive vars
-        in.read(reinterpret_cast<char*>(&id), sizeof(id));
-        // in.read(reinterpret_cast<char*>(&is_min_factor), sizeof(is_min_factor));
-        // in.read(reinterpret_cast<char*>(&height), sizeof(height));
-        in.read(reinterpret_cast<char*>(&fail_link_id), sizeof(fail_link_id));
-        // in.read(reinterpret_cast<char*>(&children_num), sizeof(children_num));
-        // in.read(reinterpret_cast<char*>(&positions_num), sizeof(positions_num));
-
-        // read combined vars
-        in.read(reinterpret_cast<char*>(&is_min_factor_children_num), sizeof(is_min_factor_children_num));
-        is_min_factor = is_min_factor_children_num >> 7;
-        children_num = is_min_factor_children_num & 0x7f;
-        in.read(reinterpret_cast<char*>(&height_positions_num), sizeof(height_positions_num));
-        height = height_positions_num >> 5;
-        positions_num = height_positions_num & 0x001f;
-
-        id_node[id] = new Node();
-        id_node[id]->is_min_factor = is_min_factor;
-        id_node[id]->height = height;
-        id_fail_link[id] = fail_link_id;
-        for (index_type j = 0; j < children_num; j++) {
-            char c;
-            index_type child_id;
-            in.read(reinterpret_cast<char*>(&c), sizeof(c));
-            in.read(reinterpret_cast<char*>(&child_id), sizeof(child_id));
-            id_children[id].emplace_back(c, child_id);
-        }
-        for (index_type j = 0; j < positions_num; j++) {
-            index_type pos;
-            in.read(reinterpret_cast<char*>(&pos), sizeof(pos));
-            id_node[id]->positions.emplace_back(pos);
-        }
-    }
-
-    // second pass
-    for (const auto& [id, node] : id_node) {
-        if (id_fail_link[id] == -1) {
-            node->fail = nullptr;
+        for (size_t i = 0, e = position_cnt[position_cnt_idx++]; i < e; i++) { node_vector[cur]->positions.emplace_back(position[position_idx++]); }
+        
+        node_vector[cur]->height = height[height_idx++];
+    };
+    
+    node_vector[root] = std::make_unique<Node>();
+    size_t cur = root, idx = 1;
+    read_node_info(cur, idx);
+    for (size_t i = 1, e = LOUDS.size(); i < e; i++) {
+        if (LOUDS[i] == 0) {
+            node_vector[cur]->children[(char) label[label_idx++]] = idx;
+            node_vector[idx++] = std::make_unique<Node>();
         } else {
-            node->fail = id_node[id_fail_link[id]];
-        }
-        for (const auto& [c, child_id] : id_children[id]) {
-            node->children[c] = std::unique_ptr<Node>(id_node[child_id]);
+            cur++;
+            read_node_info(cur, idx);
         }
     }
-
-    root = std::unique_ptr<Node>(id_node[0]);
 }

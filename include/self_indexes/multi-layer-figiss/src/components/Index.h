@@ -36,8 +36,11 @@ public:
         sdsl::write_member(tau_l, out);
         sdsl::write_member(tau_u, out);
         sdsl::write_member(lambda, out);
+        std::cout << "Serializing AC_automaton" << std::endl;
         ac_automata.serialize(out);
+        std::cout << "Serializing forward_location_tree" << std::endl;
         forward_location_tree.serialize(out);
+        std::cout << "Serializing reverse_location_tree" << std::endl;
         reverse_location_tree.serialize(out);
     }
 
@@ -45,6 +48,7 @@ public:
         sdsl::read_member(tau_l, in);
         sdsl::read_member(tau_u, in);
         sdsl::read_member(lambda, in);
+        std::cout << "(TBD) load AC" << std::endl;
         ac_automata.load(in);
         forward_location_tree.load(in);
         reverse_location_tree.load(in);
@@ -92,7 +96,9 @@ private:
 Index::Index(std::string &text, const std::vector<std::pair<size_t, size_t>> &mf, size_t tau_l, size_t tau_u, size_t lambda):
 text(text), tau_l(tau_l), tau_u(tau_u), lambda(lambda), ac_automata(text, mf), forward_location_tree(text, false), reverse_location_tree(text, true)
 {
+    std::cout << "Inserting min_factors to forward_location_tree" << std::endl;
     forward_location_tree.insert_factors(mf);
+    std::cout << "Inserting min_factors to reverse_location_tree" << std::endl;
     reverse_location_tree.insert_factors(mf);
 }
 

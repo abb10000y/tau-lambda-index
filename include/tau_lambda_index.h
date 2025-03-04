@@ -564,7 +564,7 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out, bool xbwt_o
 
     for (size_t i = 0; i < n; i++) {
         std::string pattern;
-
+        std::cout << "(TBD) pattern_idx: " << i << std::endl;
 		for(size_t j = 0; j < m; j++){
 			char c;
 			in.get(c);
