@@ -257,12 +257,8 @@ void Ac_automata::load(std::ifstream &in) {
     failure.load(in);
 
     node_vector.resize(null_link);
-
-    std::cout << "(TBD) ac_size: " << null_link << std::endl;
-    std::cout << "(TBD) LOUDS.size: " << LOUDS.size() << std::endl;
     
-    auto read_node_info = [&](size_t cur, size_t idx) {
-        // if (failure[failure_idx] != null_link && failure[failure_idx] >= idx) { throw std::invalid_argument("a"); }
+    auto read_node_info = [&](size_t cur) {
         node_vector[cur]->fail = failure[failure_idx++];
 
         node_vector[cur]->is_min_factor = is_min_factor[is_min_factor_idx++];
@@ -274,14 +270,14 @@ void Ac_automata::load(std::ifstream &in) {
     
     node_vector[root] = std::make_unique<Node>();
     size_t cur = root, idx = 1;
-    read_node_info(cur, idx);
+    read_node_info(cur);
     for (size_t i = 1, e = LOUDS.size(); i < e; i++) {
         if (LOUDS[i] == 0) {
             node_vector[cur]->children[(char) label[label_idx++]] = idx;
             node_vector[idx++] = std::make_unique<Node>();
         } else {
             cur++;
-            read_node_info(cur, idx);
+            read_node_info(cur);
         }
     }
 }

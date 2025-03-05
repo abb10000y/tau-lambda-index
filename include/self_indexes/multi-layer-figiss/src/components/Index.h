@@ -48,7 +48,6 @@ public:
         sdsl::read_member(tau_l, in);
         sdsl::read_member(tau_u, in);
         sdsl::read_member(lambda, in);
-        std::cout << "(TBD) load AC" << std::endl;
         ac_automata.load(in);
         forward_location_tree.load(in);
         reverse_location_tree.load(in);
@@ -187,17 +186,19 @@ std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
     if (start_pattern == -1) {
         return std::vector<size_t>();
     }
-
+    
     std::string_view pattern_view(pattern); // convert pattern to string_view for better performance
     std::vector<size_t> results;
-
+    
     auto factor_end_in_pattern = start_pattern + length - 1; // end of factor in pattern
     std::string pattern_suffix = pattern.substr(start_pattern, pattern.size() - start_pattern); // begin of factor to the end of pattern
     std::string pattern_prefix = pattern.substr(0, factor_end_in_pattern + 1); // begin of pattern to end of factor TODO +1 or not?
-
-    std::vector<size_t> forward_factors = forward_location_tree.match(pattern_suffix, pattern_suffix.size());
-    std::vector<size_t> reverse_factors = reverse_location_tree.match(pattern_prefix, pattern_prefix.size());
     
+    std::vector<size_t> forward_factors = forward_location_tree.match(pattern_suffix, pattern_suffix.size(), start_pattern);
+    std::vector<size_t> reverse_factors = reverse_location_tree.match(pattern_prefix, pattern_prefix.size(), start_pattern);
+    
+    std::cout << start_pattern << ", " << length << ", " << forward_factors.size() << ", " << reverse_factors.size() << std::endl;
+
     std::sort(forward_factors.begin(), forward_factors.end());
     std::sort(reverse_factors.begin(), reverse_factors.end());
     results.resize(std::min(forward_factors.size(), reverse_factors.size()));

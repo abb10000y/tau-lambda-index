@@ -11,14 +11,17 @@
 #include <map>
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 #include <functional> // TODO remove
 #include "../Location_tree/Location_tree.h"
 #include "Blind_tree_node.h"
 #include "Blind_tree_link.h"
+#include <sdsl/bit_vectors.hpp>
 
 class Blind_tree {
 public:
     using Node = Blind_tree_node;
+    using Link = Blind_tree_link;
 
     // construct a location tree from the text
     // reverse: whether to construct a reverse location tree
@@ -27,7 +30,7 @@ public:
 
     void insert_factors(const std::vector<std::pair<size_t, size_t>>& min_factors);
     // std::vector<size_t> match(const std::string& pattern);
-    std::vector<size_t> match(std::string_view pattern, size_t factor_size);
+    std::vector<size_t> match(std::string_view pattern, size_t factor_size, size_t offset);
 
     // debug, print info of the tree for each node
     void print(Node* node = nullptr, bool first_call = true, bool print_out_path = true); 
@@ -45,7 +48,7 @@ private:
 
     // recursively get all the locations of the subtree
     // TODO non dfs version
-    void get_locations(Node* node, std::vector<size_t>& result); 
+    void get_locations(Node* node, std::vector<size_t>& result, size_t offset); 
 
     // dfs to pick left most location
     size_t pick_one_location(Node* node);
@@ -83,7 +86,7 @@ void Blind_tree::insert_factors(const std::vector<std::pair<size_t, size_t>>& mi
 
 // adjust match to match the blind tree node and links
 // std::vector<size_t> Blind_tree::match(const std::string& pattern) {
-std::vector<size_t> Blind_tree::match(std::string_view pattern, size_t factor_size) {
+std::vector<size_t> Blind_tree::match(std::string_view pattern, size_t factor_size, size_t offset) {
     if (!reverse) {
         auto curr = root.get();
         size_t i = 0;
@@ -98,7 +101,7 @@ std::vector<size_t> Blind_tree::match(std::string_view pattern, size_t factor_si
             if (i + len + 1 >= factor_size) {
                 // get all locations
                 std::vector<size_t> result;
-                get_locations(node.get(), result);
+                get_locations(node.get(), result, offset);
 
                 // // pick one location and verify
                 // auto location = result[0];
@@ -131,7 +134,7 @@ std::vector<size_t> Blind_tree::match(std::string_view pattern, size_t factor_si
         if ((pattern.size() - i + len) >= factor_size) {
             // get all locations
             std::vector<size_t> result;
-            get_locations(node.get(), result);
+            get_locations(node.get(), result, offset);
 
             // // pick one location and verify
             // auto location = result[0];
@@ -166,126 +169,90 @@ size_t Blind_tree::get_num_nodes() {
 }
 
 void Blind_tree::serialize(std::ofstream& out) {
-    using index_type = uint32_t;
+    std::vector<bool> LOUDS_tmp, is_leaf_tmp;
+    std::vector<size_t> label_tmp, factor_idx_tmp, len_tmp;
 
-    out.write(reinterpret_cast<char*>(&reverse), sizeof(reverse));
-
-    std::unordered_map<Node*, index_type> node_id;
-    // dfs to assign id to each node
-    std::stack<Node*> s;
-    s.push(root.get());
-    index_type id = 0;
-    while (!s.empty()) {
-        Node* curr_node = s.top();
-        s.pop();
-        node_id[curr_node] = id++;
-        for (const auto& p : curr_node->links) {
-            s.push(p.second->node.get());
-        }
-    }
-
-    // serialize
-    index_type node_num = node_id.size();
-    out.write(reinterpret_cast<char*>(&node_num), sizeof(node_num));
-    for (const auto& p: node_id) {
-        Node* node = p.first;
-
-        index_type id = p.second;
-        bool is_leaf = node->is_leaf; // optimize
-        index_type factor_index = node->factor_index;
-        uint8_t children_num = node->links.size(); // optimize
-
-        // combine is_leaf and children_num into one byte
-        uint8_t is_leaf_children_num = (is_leaf << 7) | children_num;
-
-        // write primitive vars
-        out.write(reinterpret_cast<char*>(&id), sizeof(id));
-        // out.write(reinterpret_cast<char*>(&is_leaf), sizeof(is_leaf));
-        // out.write(reinterpret_cast<char*>(&children_num), sizeof(children_num));
-        out.write(reinterpret_cast<char*>(&is_leaf_children_num), sizeof(is_leaf_children_num));
-        if (is_leaf) {
-            out.write(reinterpret_cast<char*>(&factor_index), sizeof(factor_index));
-        }
-
+    std::queue<Node*> que;
+    que.push(root.get());
+    while (!que.empty()) {
+        Node* cur = que.front();
+        que.pop();
+        LOUDS_tmp.push_back(1);
         
-            
-        for (const auto& p : node->links) {
-            Blind_tree_link *link = p.second.get();
-
-            char c = p.first; // optimize
-            u_int16_t len = link->len; // bound by lambda
-            index_type child_id = node_id[link->node.get()];
-
-            out.write(reinterpret_cast<char*>(&c), sizeof(c));
-            out.write(reinterpret_cast<char*>(&len), sizeof(len));
-            out.write(reinterpret_cast<char*>(&child_id), sizeof(child_id));
+        for (const auto &p : cur->links) {
+            label_tmp.emplace_back(p.first);
+            len_tmp.emplace_back(p.second->len);
+            que.push(p.second->node.get());
+            LOUDS_tmp.push_back(0);
         }
+        
+        is_leaf_tmp.emplace_back(cur->is_leaf);
+        factor_idx_tmp.emplace_back(cur->factor_index);
     }
+
+    sdsl::bit_vector LOUDS, is_leaf;
+    sdsl::int_vector<> label, factor_idx, len;
+
+    LOUDS.resize(LOUDS_tmp.size());
+    for (size_t i = 0, e = LOUDS_tmp.size(); i < e; i++) { LOUDS[i] = LOUDS_tmp[i]; }
+    is_leaf.resize(is_leaf_tmp.size());
+    for (size_t i = 0, e = is_leaf_tmp.size(); i < e; i++) { is_leaf[i] = is_leaf_tmp[i]; }
+    label.resize(label_tmp.size());
+    for (size_t i = 0, e = label_tmp.size(); i < e; i++) { label[i] = label_tmp[i]; }
+    factor_idx.resize(factor_idx_tmp.size());
+    for (size_t i = 0, e = factor_idx_tmp.size(); i < e; i++) { factor_idx[i] = factor_idx_tmp[i]; }
+    len.resize(len_tmp.size());
+    for (size_t i = 0, e = len_tmp.size(); i < e; i++) { len[i] = len_tmp[i]; }
+
+    sdsl::util::bit_compress(LOUDS);
+    sdsl::util::bit_compress(is_leaf);
+    sdsl::util::bit_compress(label);
+    sdsl::util::bit_compress(factor_idx);
+    sdsl::util::bit_compress(len);
+
+    LOUDS.serialize(out);
+    is_leaf.serialize(out);
+    label.serialize(out);
+    factor_idx.serialize(out);
+    len.serialize(out);
+
 }
 
 void Blind_tree::load(std::ifstream& in) {
-    using index_type = uint32_t;
+    sdsl::bit_vector LOUDS, is_leaf;
+    sdsl::int_vector<> label, factor_idx, len;
+    size_t LOUDS_idx = 0, is_leaf_idx = 0, label_idx = 0, factor_idx_idx = 0, len_idx = 0;
+    
+    LOUDS.load(in);
+    is_leaf.load(in);
+    label.load(in);
+    factor_idx.load(in);
+    len.load(in);
 
-    in.read(reinterpret_cast<char*>(&reverse), sizeof(reverse));
+    auto read_node_info = [&](Node* cur) {
+        if (cur == nullptr) { throw std::invalid_argument("false_0"); }
+        if (is_leaf_idx >= is_leaf.size()) { throw std::invalid_argument("false_1"); }
+        cur->is_leaf = is_leaf[is_leaf_idx++];
+        if (factor_idx_idx >= factor_idx.size()) { throw std::invalid_argument("false_2"); }
+        cur->factor_index = factor_idx[factor_idx_idx++];
+    };
 
-    // id_node, id_link mapping
-    std::unordered_map<index_type, Node*> id_node;
-    std::unordered_map<index_type, std::vector<std::tuple<char, u_int16_t, index_type>>> id_link;
-
-    // deserialize
-    index_type node_num;
-    in.read(reinterpret_cast<char*>(&node_num), sizeof(node_num));
-
-    // first pass, create nodes
-    for (index_type i = 0; i < node_num; i++) {
-
-        index_type id;
-        bool is_leaf; // optimize
-        index_type factor_index;
-        uint8_t children_num; // optimize
-
-        // combined vars
-        uint8_t is_leaf_children_num;
-
-        in.read(reinterpret_cast<char*>(&id), sizeof(id));
-        // in.read(reinterpret_cast<char*>(&is_leaf), sizeof(is_leaf));
-        // in.read(reinterpret_cast<char*>(&children_num), sizeof(children_num));
-        in.read(reinterpret_cast<char*>(&is_leaf_children_num), sizeof(is_leaf_children_num));
-        is_leaf = is_leaf_children_num >> 7;
-        children_num = is_leaf_children_num & 0x7f;
-
-        id_node[id] = new Node();
-        id_node[id]->is_leaf = is_leaf;
-        if (is_leaf) {
-            in.read(reinterpret_cast<char*>(&factor_index), sizeof(factor_index));
-            id_node[id]->factor_index = factor_index;
-        }
-
-        for (int j = 0; j < children_num; j++) {
-
-            char c; // optimize
-            u_int16_t len; // bound by lambda
-            index_type child_id;
-
-            in.read(reinterpret_cast<char*>(&c), sizeof(c));
-            in.read(reinterpret_cast<char*>(&len), sizeof(len));
-            in.read(reinterpret_cast<char*>(&child_id), sizeof(child_id));
-            if (id_link.find(id) == id_link.end()) {
-                id_link[id] = {};
-            }
-            id_link[id].emplace_back(c, len, child_id);
+    std::queue<Node*> que;
+    root = std::make_unique<Node>();
+    Node* cur = root.get();
+    read_node_info(cur);
+    for (size_t i = 1, e = LOUDS.size(); i < e; i++) {
+        if (LOUDS[i] == 0) {
+            std::unique_ptr new_node = std::make_unique<Node>();
+            que.push(new_node.get());
+            cur->links[(char) label[label_idx++]] = std::make_unique<Link>(len[len_idx++], new_node.release());
+        } else {
+            cur = que.front();
+            que.pop();
+            read_node_info(cur);
         }
     }
 
-    // second pass, create links
-    for (const auto& p : id_link) {
-        index_type id = p.first;
-        for (const auto& [c, len, child_id] : p.second) {
-            id_node[id]->links[c] = std::make_unique<Blind_tree_link>(len, id_node[child_id]);
-        }
-    }
-
-    this->root = std::unique_ptr<Node>(id_node[0]);
 }
 
 void Blind_tree::print(Node* node, bool first_call, bool print_out_path) {
@@ -311,15 +278,15 @@ void Blind_tree::print(Node* node, bool first_call, bool print_out_path) {
 }
 
 // move the get_locations function out of the function
-void Blind_tree::get_locations(Node* node, std::vector<size_t>& result) {
+void Blind_tree::get_locations(Node* node, std::vector<size_t>& result, size_t offset) {
     if (!node) {
         return;
     }
     if (node->is_leaf) {
-        result.push_back(node->factor_index);
+        result.push_back(node->factor_index - offset);
     }
     for (auto& [c, link] : node->links) {
-        get_locations(link->node.get(), result);
+        get_locations(link->node.get(), result,  offset);
     }
 } 
 
