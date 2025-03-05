@@ -75,7 +75,7 @@ std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
     }
     
     std::string_view pattern_view(pattern); // convert pattern to string_view for better performance
-    std::vector<size_t> results;
+    std::vector<size_t> results, candidate_results;
     
     auto factor_end_in_pattern = start_pattern + length - 1; // end of factor in pattern
     std::string pattern_suffix = pattern.substr(start_pattern, pattern.size() - start_pattern); // begin of factor to the end of pattern
@@ -86,15 +86,24 @@ std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
     
     std::sort(forward_factors.begin(), forward_factors.end());
     std::sort(reverse_factors.begin(), reverse_factors.end());
-    results.resize(std::min(forward_factors.size(), reverse_factors.size()));
+    candidate_results.resize(std::min(forward_factors.size(), reverse_factors.size()));
     auto it = std::set_intersection(forward_factors.begin(), forward_factors.end(),
     reverse_factors.begin(), reverse_factors.end(),
-    results.begin());
-    if (it - results.begin() <tau_l) {
-        results.clear();
+    candidate_results.begin());
+    if (it - candidate_results.begin() <tau_l) {
+        candidate_results.clear();
     } else {
-        results.resize(it - results.begin());
+        candidate_results.resize(it - candidate_results.begin());
     }
+
+    for (auto begin_pattern_in_text: candidate_results) {
+        std::string_view pattern_in_text = std::string_view(text).substr(begin_pattern_in_text, pattern.size());
+        if (pattern_in_text == pattern_view) {
+            results.emplace_back(begin_pattern_in_text);
+        }
+    }
+
+    if (results.size() < tau_l) { results.clear(); }
     
     return results;
 }
