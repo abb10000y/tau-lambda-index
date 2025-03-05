@@ -570,8 +570,6 @@ void tau_lambda_index::locate(std::ifstream &in, std::ofstream &out, bool xbwt_o
 			pattern += c;
 		}
 
-        std::cout << "[i, p]: " << i << ", " << pattern << std::endl;
-
         std::vector<uint64_t> results;
         if (is_original_index) {
             t1 = std::chrono::steady_clock::now();

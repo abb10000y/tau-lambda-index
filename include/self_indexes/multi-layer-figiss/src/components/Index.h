@@ -58,7 +58,7 @@ private:
 
 Index::Index(std::string &text, const std::vector<std::pair<size_t, size_t>> &mf, size_t tau_l, size_t tau_u, size_t lambda):
 text(text), tau_l(tau_l), tau_u(tau_u), lambda(lambda), ac_automata(text, mf), forward_location_tree(text, false), reverse_location_tree(text, true)
-{
+{   
     std::cout << "Inserting min_factors to forward_location_tree" << std::endl;
     forward_location_tree.insert_factors(mf);
     std::cout << "Inserting min_factors to reverse_location_tree" << std::endl;
@@ -68,10 +68,9 @@ text(text), tau_l(tau_l), tau_u(tau_u), lambda(lambda), ac_automata(text, mf), f
 Index::~Index() {}
 
 // Blind tree version
-std::vector<size_t> Index::location_tree_search(const std::string& pattern) {   
+std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
     auto [start_pattern, length] = ac_automata.match_pos_in_pattern(pattern);
     if (start_pattern == -1) {
-        std::cout << start_pattern << ", " << length << std::endl;
         return std::vector<size_t>();
     }
     
@@ -85,8 +84,6 @@ std::vector<size_t> Index::location_tree_search(const std::string& pattern) {
     std::vector<size_t> forward_factors = forward_location_tree.match(pattern_suffix, pattern_suffix.size(), start_pattern);
     std::vector<size_t> reverse_factors = reverse_location_tree.match(pattern_prefix, pattern_prefix.size(), start_pattern);
     
-    std::cout << start_pattern << ", " << length << ", " << forward_factors.size() << ", " << reverse_factors.size() << std::endl;
-
     std::sort(forward_factors.begin(), forward_factors.end());
     std::sort(reverse_factors.begin(), reverse_factors.end());
     results.resize(std::min(forward_factors.size(), reverse_factors.size()));
