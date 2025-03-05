@@ -18,18 +18,11 @@
 
 class Index {
 public:
-    // generate min_factor from the scratch
-    //Index(const std::string& text, int tau, int lambda = -1, bool activate_lambda = false, bool use_location_tree = false);
     // load the serialized AC + LT
     Index(std::string &text): text(text), forward_location_tree(text, false), reverse_location_tree(text, true){}
     Index(std::string &text, const std::vector<std::pair<size_t, size_t>> &mf, size_t tau_l, size_t tau_u, size_t lambda);
-    //Index(std::string& directory_name, const std::string& text, int tau, int lambda = -1, bool activate_lambda = false, bool use_location_tree = false);
-    // load the min_factor file
-    //Index(const std::string& text, int tau, int lambda, bool activate_lambda, bool use_location_tre, std::string mfPath);
     ~Index();
 
-    //std::vector<size_t> search(const std::string& pattern, bool verbose = true); // search the pattern in the text
-    //std::vector<size_t> direct_search(const std::string& pattern); // search the pattern in the text directly
     std::vector<size_t> location_tree_search(const std::string& pattern); // search the pattern in the text using location tree
 
     void serialize(std::ofstream &out) {
@@ -55,42 +48,13 @@ public:
         reverse_location_tree.set_text(text);
     }
 
-    // prop for debug TODO remove
-    //size_t get_ac_size() {
-    //    return ac_automata.get_ac_size();
-    //}
-
 private:
     std::string &text; // the text
-    //std::string inputTextPath;
     size_t tau_u, tau_l, lambda;
-    //bool activate_lambda; // whether activate lambda
-    //bool use_location_tree; // whether use location tree
     Ac_automata ac_automata; // the ac_automata
     Blind_tree forward_location_tree; // the forward location tree
     Blind_tree reverse_location_tree; // the reverse location tree
 };
-
-// TODO ugly, need to be refactored
-//Index::Index(const std::string& text, int tau, int lambda, bool activate_lambda, bool use_location_tree)
-//    : text(text), 
-//      tau(tau), 
-//      lambda(lambda), 
-//      activate_lambda(activate_lambda),
-//      use_location_tree(use_location_tree),
-//      forward_location_tree(text, false), // false/true for forward/reverse
-//      reverse_location_tree(text, true) 
-//{
-//    if (activate_lambda && lambda < 0) {
-//        std::cout << "Error: lambda is not set" << std::endl;
-//        throw std::runtime_error("lambda is not set"); // TODO more specific exception?
-//    }
-//
-//    Minimun_factors min_factors(text, tau, lambda, activate_lambda);
-//    ac_automata = Ac_automata(text, min_factors.get_min_factors());
-//    forward_location_tree.insert_factors(min_factors.get_min_factors());
-//    reverse_location_tree.insert_factors(min_factors.get_min_factors());
-//}
 
 Index::Index(std::string &text, const std::vector<std::pair<size_t, size_t>> &mf, size_t tau_l, size_t tau_u, size_t lambda):
 text(text), tau_l(tau_l), tau_u(tau_u), lambda(lambda), ac_automata(text, mf), forward_location_tree(text, false), reverse_location_tree(text, true)
@@ -101,84 +65,7 @@ text(text), tau_l(tau_l), tau_u(tau_u), lambda(lambda), ac_automata(text, mf), f
     reverse_location_tree.insert_factors(mf);
 }
 
-//Index::Index(std::string& directory_name, const std::string& text, int tau, int lambda, bool activate_lambda, bool use_location_tree) 
-//    : text(text), 
-//      tau(tau), 
-//      lambda(lambda), 
-//      activate_lambda(activate_lambda), 
-//      use_location_tree(use_location_tree),
-//      forward_location_tree(text, false), // false/true for forward/reverse
-//      reverse_location_tree(text, true) 
-//{
-//    if (activate_lambda && lambda < 0) {
-//        std::cout << "Error: lambda is not set" << std::endl;
-//        throw std::runtime_error("lambda is not set"); // TODO more specific exception?
-//    
-//    }
-//
-//    std::string ac_filename = directory_name + "/ac_automata.bin";
-//    std::string forward_location_tree_filename = directory_name + "/forward_location_tree.bin";
-//    std::string reverse_location_tree_filename = directory_name + "/reverse_location_tree.bin";
-//    ac_automata.load(ac_filename);
-//    forward_location_tree.load(forward_location_tree_filename);
-//    reverse_location_tree.load(reverse_location_tree_filename);
-//}
-
-// load the min_factor file
-//Index::Index(const std::string& text, int tau, int lambda, bool activate_lambda, bool use_location_tree, std::string mfPath)
-//    : text(text), 
-//      tau(tau), 
-//      lambda(lambda), 
-//      activate_lambda(activate_lambda), 
-//      use_location_tree(use_location_tree),
-//      forward_location_tree(text, false), // false/true for forward/reverse
-//      reverse_location_tree(text, true) 
-//{
-//       
-//    if (activate_lambda && lambda < 0) {
-//        std::cout << "Error: lambda is not set" << std::endl;
-//        throw std::runtime_error("lambda is not set"); // TODO more specific exception?
-//    
-//    }   
-//
-//    //Load_mf_from_disk mfSet(mfPath);
-//    ac_automata = Ac_automata(text, mfSet.get_min_factors());
-//    forward_location_tree.insert_factors(mfSet.get_min_factors());
-//    reverse_location_tree.insert_factors(mfSet.get_min_factors());
-//}
-
 Index::~Index() {}
-
-//std::vector<size_t> Index::search(const std::string& pattern, bool verbose) {
-//    if (activate_lambda && pattern.size() > lambda) {
-//        if (verbose) {
-//            std::cout << "Warning: the length of the pattern is larger than lambda" << std::endl;
-//        }
-//        return std::vector<size_t>();
-//    }
-//
-//    if (use_location_tree) {
-//        return location_tree_search(pattern);
-//    } 
-//    else {
-//        return direct_search(pattern);
-//    }
-//}
-
-//std::vector<size_t> Index::direct_search(const std::string& pattern) {
-//    std::vector<size_t> result;
-//    std::vector<std::tuple<size_t, size_t, size_t>> ac_result = ac_automata.match(pattern);
-//    std::string_view pattern_view(pattern); // convert pattern to string_view for better performance
-//
-//    for (auto [start_text, start_pattern, length] : ac_result) {
-//        size_t begin_pattern_in_text = start_text - start_pattern;
-//        std::string_view pattern_in_text = std::string_view(text).substr(begin_pattern_in_text, pattern.size());
-//        if (pattern_in_text == pattern_view) {
-//            result.emplace_back(begin_pattern_in_text);
-//        }
-//    }
-//    return result;
-//}
 
 // Blind tree version
 std::vector<size_t> Index::location_tree_search(const std::string& pattern) {   
