@@ -98,7 +98,7 @@ std::vector<size_t> Blind_tree::match(std::string_view pattern, size_t factor_si
             auto len = it->second->len;
             auto& node = it->second->node;
             // if (i + len - 1 < pattern.size()) {                
-            if (i + len + 1 >= factor_size) {
+            if (i + len >= factor_size) {
                 // get all locations
                 std::vector<size_t> result;
                 get_locations(node.get(), result, offset);
@@ -131,7 +131,8 @@ std::vector<size_t> Blind_tree::match(std::string_view pattern, size_t factor_si
         auto& node = it->second->node;
         // if (i - len + 1 >= 0) {
         // if ((i - len) <= (pattern.size() - 1 - factor_size)) { // I don't know why this format won't work
-        if ((pattern.size() - i + len) >= factor_size) {
+        // if ((pattern.size() - i + len - 1) >= factor_size) {
+        if (i < len) {
             // get all locations
             std::vector<size_t> result;
             get_locations(node.get(), result, offset);

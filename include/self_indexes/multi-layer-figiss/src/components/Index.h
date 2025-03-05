@@ -71,6 +71,7 @@ Index::~Index() {}
 std::vector<size_t> Index::location_tree_search(const std::string& pattern) {   
     auto [start_pattern, length] = ac_automata.match_pos_in_pattern(pattern);
     if (start_pattern == -1) {
+        std::cout << start_pattern << ", " << length << std::endl;
         return std::vector<size_t>();
     }
     
