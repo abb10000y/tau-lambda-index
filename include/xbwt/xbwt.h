@@ -162,9 +162,11 @@ void XBWT::insert(sdsl::int_vector<>& text, uint64_t effective_alphabet_width, u
                 size_t idx = sa[j + 1];  // +1 for skipping the '0'
                 st.insert(text[idx > 0 ? idx-1 : len-1]); // BWT
             }
-            for (auto itr = st.begin(), e = --st.end(); itr != st.end(); itr++) {
-                L_vector.push_back(*itr);
-                last_vector.push_back(itr == e);
+            if (!st.empty()) {
+                for (auto itr = st.begin(), e = --st.end(); itr != st.end(); itr++) {
+                    L_vector.push_back(*itr);
+                    last_vector.push_back(itr == e);
+                }
             }
             prev = i;
 
