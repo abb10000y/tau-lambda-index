@@ -40,7 +40,9 @@ int main(int argc, char* argv[]) {
     // create a tau-lambda-index instance and operate it
     tau_lambda_index* idx = new tau_lambda_index();
     idx->load(inputIndex, inputIndexPath, xbwt_only);
-    idx->locate(inputPatternFile, outputResultFile, xbwt_only);
+    if (!xbwt_only) {
+        idx->locate(inputPatternFile, outputResultFile, xbwt_only);
+    }
 
     inputIndex.close();
     inputPatternFile.close();
