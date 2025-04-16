@@ -59,7 +59,7 @@ public:
         } else if (index_type == index_types::lz77_type) {
             out << "number_of_phrases: " << lz77->z << "\n";
         } else if (index_type == index_types::LMS_type) {
-            out << "grammar_size: " << lms->grammar_tree.get_grammar_size() << "\n";
+            out << "grammar_size: " << lms.grammar_tree.get_grammar_size() << "\n";
         }
         out << "masked_ratio: " << masked_ratio << "\n" ;
     }
@@ -148,7 +148,7 @@ private:
     // underlying_indexes
     ri::r_index<> *r_index;
     lz77index::static_selfindex_lz77* lz77;
-    lpg_index* lms;
+    lpg_index lms;
     Index* old_tau_lambda;
     compact_suffix_trie* location_trie;
     hybrid* hybrid_index;
@@ -320,7 +320,7 @@ tau_lambda_index::tau_lambda_index(std::string &mf_path, index_types index_type)
             r_index = new ri::r_index<>(input, true);
         } else if (index_type == index_types::LMS_type) {
             std::string LMSTemp = "/tmp"; // same as the default value, don't change
-            lms = new lpg_index(maskedTextPath, LMSTemp, 1, 0.5);
+            lms = lpg_index(maskedTextPath, LMSTemp, 1, 0.5);
         }
 
         if (std::remove(maskedTextPath.c_str()) != 0) {
@@ -402,7 +402,7 @@ void tau_lambda_index::serialize(std::ofstream &out) {
         if (index_type == index_types::r_index_type) {
             r_index->serialize(out);
         } else if (index_type == index_types::LMS_type) {
-            lms->serialize(out, NULL, "");
+            lms.serialize(out, NULL, "");
         } else if (index_type == index_types::compact_suffix_trie) {
             location_trie->serialize(out);
         } else if (index_type == index_types::hybrid) {
@@ -444,7 +444,7 @@ void tau_lambda_index::load(std::ifstream &in, std::string inputIndexPath, bool 
                 lz77 = lz77index::static_selfindex_lz77::load(fd);
                 fclose(fd);
             } else if (index_type == index_types::LMS_type) {
-                lms->load(in);
+                lms.load(in);
             } else if (index_type == index_types::compact_suffix_trie) {
                 location_trie = new compact_suffix_trie();
                 location_trie->load(in);
@@ -490,7 +490,7 @@ void tau_lambda_index::_locate(std::string &pattern, std::vector<uint64_t> &resu
             delete[] p;
         } else if (index_type == index_types::LMS_type) {
             std::set<lpg_index::size_type> tmp;
-            lms->locate(pattern, tmp);
+            lms.locate(pattern, tmp);
             if (tmp.size() >= tau_l) {
                 for (auto r : tmp) { results.push_back(r); }
             }
@@ -525,7 +525,7 @@ void tau_lambda_index::_locate_original_index(std::string &pattern, std::vector<
         }
     } else if (index_type == index_types::LMS_type) {
         std::set<lpg_index::size_type> tmp;
-        lms->locate(pattern, tmp, tau_u);
+        lms.locate(pattern, tmp, tau_u);
         if (tau_l <= tmp.size() && tmp.size() <= tau_u) {
             for (auto r : tmp) { results.push_back(r); }
         }
