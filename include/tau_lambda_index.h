@@ -146,7 +146,7 @@ private:
     bool is_original_index = false;
 
     // underlying_indexes
-    ri::r_index<> *r_index;
+    ri::r_index<> *r_index; 
     lz77index::static_selfindex_lz77* lz77;
     lpg_index lms;
     Index* old_tau_lambda;
