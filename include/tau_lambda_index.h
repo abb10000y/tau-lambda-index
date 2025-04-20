@@ -184,7 +184,7 @@ private:
     void gen_covered_notations(std::vector<std::pair<size_t, size_t>> &covered_notations) {
         size_t n = text.size(), l_delimiter = 0, r_delimiter = 0;
 
-        auto find_next_delimiter [&](size_t &l, size_t &r) -> void{
+        auto find_next_delimiter = [&](size_t &l, size_t &r) -> void{
             if (r < n) {
                 r = l;
                 while (r < n && text[r] != delimiter) { r++; }
@@ -194,7 +194,7 @@ private:
         // mark which parts should be kept
         if (min_factors.size() > 0) {
             find_next_delimiter(l_delimiter, r_delimiter);
-            size_t start = 0, end = 0, 
+            size_t start = 0, end = 0;
             if (std::get<1>(min_factors[0]) + 2 > lambda) { start = std::get<1>(min_factors[0]) + 1 - lambda; } // TBD: some bugs here, depends on if T[0] is delimiter or not
             end = std::min(std::get<0>(min_factors[0]) + lambda - 1, r_delimiter - 1);
             for (size_t i = 1, m = min_factors.size(); i < m; i++) {
