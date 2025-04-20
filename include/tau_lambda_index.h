@@ -186,7 +186,7 @@ private:
 
         auto find_next_delimiter = [&](size_t &l, size_t &r) -> void{
             if (r < n) {
-                r = l;
+                l = r++;
                 while (r < n && text[r] != delimiter) { r++; }
             }
         };
@@ -195,12 +195,12 @@ private:
         if (min_factors.size() > 0) {
             find_next_delimiter(l_delimiter, r_delimiter);
             size_t start = 0, end = 0;
-            if (std::get<1>(min_factors[0]) + 2 > lambda) { start = std::get<1>(min_factors[0]) + 1 - lambda; } // TBD: some bugs here, depends on if T[0] is delimiter or not
+            if (std::get<1>(min_factors[0]) + 1 > lambda) { start = std::get<1>(min_factors[0]) + 1 - lambda; } // TBD: some bugs here, depends on if T[0] is delimiter or not
             end = std::min(std::get<0>(min_factors[0]) + lambda - 1, r_delimiter - 1);
             for (size_t i = 1, m = min_factors.size(); i < m; i++) {
                 size_t next_start = 0, next_end = r_delimiter - 1;
-                if (std::get<0>(min_factors[i]) > r_delimiter) { find_next_delimiter(l_delimiter, r_delimiter); }
-                if (std::get<1>(min_factors[i]) + 1 > lambda + l_delimiter) { next_start = std::get<1>(min_factors[i]) + 1 - lambda + l_delimiter; }
+                while (std::get<0>(min_factors[i]) > r_delimiter) { find_next_delimiter(l_delimiter, r_delimiter); }
+                if (std::get<1>(min_factors[i]) + 1 > lambda + l_delimiter) { next_start = std::get<1>(min_factors[i]) + 1 - lambda; }
                 else { next_start = l_delimiter + 1; } // TBD: some bugs here, depends on if T[0] is delimiter or not
                 next_end = std::min(std::get<0>(min_factors[i]) + lambda - 1, r_delimiter - 1);
                 if (next_start <= end) { end = next_end; }
