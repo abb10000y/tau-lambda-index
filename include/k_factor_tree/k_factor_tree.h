@@ -19,7 +19,7 @@ using Node = k_factor_tree_node;
 private:
     Node *root;
     size_t lambda, tau_l, tau_u;
-    std::unordered_set<char> delimiters {'\0'};
+    std::unordered_set<unsigned char> delimiters {'\0', 254};
     //std::string text;
     std::vector<Node*> node_vector; // debug only
     std::vector<std::pair<size_t, size_t>> min_factors;
@@ -180,14 +180,14 @@ void k_factor_tree::gen_mf(const std::string &text, size_t tau_l, size_t tau_u) 
     Node* node = root;
     while (r < n) {
         char c = text[r];
-        while (r < n && !node->is_leaf && node->links[c]->cnt > tau_u && delimiters.count(c) == 0) {
+        while (r < n && !node->is_leaf && node->links[c]->cnt > tau_u && delimiters.count((unsigned char) c) == 0) {
             r += node->links[c]->get_length(0);
             node = node->links[c];
             c = text[r];
         }
         if (r >= n) {
             break;
-        } else if (delimiters.count(c)) {
+        } else if (delimiters.count((unsigned char) c)) {
             node = root;
             l = ++r;
         } else if (node->is_leaf) {
@@ -253,7 +253,7 @@ k_factor_tree::k_factor_tree(const std::string &text, size_t lambda, size_t tau_
         if (lambda == 0) { lambda = text.size() + 1; }
         else if (lambda == 1) { throw std::invalid_argument("lambda can't be 1"); } // for the gen_masked_notation(), but not sure if necessary
         if (text.size() == 0) { throw std::invalid_argument("input text is empty"); }
-        if (delimiters.count(text[0])) { throw std::invalid_argument("input text start with delimiter symbol"); }
+        if (delimiters.count((unsigned char) text[0])) { throw std::invalid_argument("input text start with delimiter symbol"); }
         if (tau_l > tau_u) { throw std::invalid_argument("tau_l > tau_u"); }
 
         size_t n = text.size();
@@ -262,9 +262,9 @@ k_factor_tree::k_factor_tree(const std::string &text, size_t lambda, size_t tau_
         node_vector.push_back(root);
         size_t prev = 0, i = 0;
         while (prev < n && i < n) {
-            while (prev < n && delimiters.count(text[prev])) { prev++; }
+            while (prev < n && delimiters.count((unsigned char) text[prev])) { prev++; }
             i = prev + 1;
-            while (i < n && delimiters.count(text[i]) == 0) { i++; }
+            while (i < n && delimiters.count((unsigned char) text[i]) == 0) { i++; }
             if (prev < n) { insert(text, prev, i + 1, std::min(lambda, i - prev + 2)); } // insert the intervals [prev, i)
             prev = i + 1;
         }

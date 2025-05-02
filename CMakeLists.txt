@@ -56,6 +56,7 @@ set(hybrid_Ref
 )
 
 add_executable(gen_mf src/gen_mf.cc)
+add_executable(add_delimiter src/add_delimiter.cc)
 add_executable(gen_index src/gen_index.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref} ${hybrid_Ref})
 add_executable(gen_pattern src/gen_pattern.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref} ${hybrid_Ref})
 add_executable(locate src/locate.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref} ${hybrid_Ref})

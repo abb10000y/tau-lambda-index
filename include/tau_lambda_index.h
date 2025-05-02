@@ -153,7 +153,7 @@ public:
 
 private:
     size_t tau_l, tau_u, lambda;
-    char delimiter = '#';
+    unsigned char delimiter = 254;
     index_types index_type;
     std::string inputTextPath, text;
     double masked_ratio;
@@ -205,7 +205,7 @@ private:
         auto find_next_delimiter = [&](size_t &l, size_t &r) -> void{
             if (r < n) {
                 l = r++;
-                while (r < n && text[r] != delimiter) { r++; }
+                while (r < n && (unsigned char) text[r] != delimiter) { r++; }
             }
         };
 
