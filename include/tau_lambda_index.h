@@ -27,9 +27,8 @@
 #include "self_indexes/hybrid/hybrid.h"
 #include "compact_suffix_trie.h"
 
-#ifndef ulong
-#define ulong unsigned long
-#endif
+using ulong = unsigned long;
+using ll = long long;
 
 enum class index_types {
     r_index_type = 1,
@@ -64,52 +63,102 @@ public:
         out << "masked_ratio: " << masked_ratio << "\n" ;
     }
     void gen_patterns(std::string &path, size_t cnt) {
-        std::ofstream out_with(path + "_with"), out_without(path + "_without");
-        out_with << "# number=" << cnt << " length=" << lambda << " file=" << inputTextPath
-                 << " tau_l=" << tau_l << " tau_u=" << tau_u << " lambda=" << lambda << " \n";
-        out_without << "# number=" << cnt << " length=" << lambda << " file=" << inputTextPath
-                 << " tau_l=" << tau_l << " tau_u=" << tau_u << " lambda=" << lambda << " \n";
+        // TBD: deal with sample_range < lambda
+        // TBD: dealing with starting with delimiter
+        std::vector<std::pair<ll, ll>> with_candidates, without_candidates, with_candidates_local;
+        ll n = (ll) text.size(), with_l = -1, with_r = -1, sample_l = -1, sample_r = -1, sample_end = -1; // [sample_l, sample_r). sample_end = last valid start position
+        if (n < lambda) { throw std::invalid_argument("[gen_patterns error] Text length < lambda."); }
+        if (min_factors.size() == 0) { throw std::invalid_argument("[gen_patterns error] Minimal factor size = 0."); }
 
-        std::vector<std::pair<size_t, size_t>> with_candidates, without_candidates;
+        auto find_next_sample_range [&]() {
+            if (sample_r < n) {
+                l = r + 1;
+                while (r < n && text[r] != delimiter) { r++; }
+                sample_end = std::max(sample_l, sample_r - lambda);
+            }
+        }
+        // reset l and r according to the starting position range that covers this mf
+        auto set_with_start_range [&](const ll mf_l, const ll mf_r, ll &l, ll &r) {
+            if (mf_r - lambda + 1 > sample_l) {
+                l = mf_r - lambda + 1;
+            } else {
+                l = sample_l;
+            }
+            r = std::min(mf_l, sample_end);
+        }
+        auto gen_wo_candidates [&](const std::vector<std::pair<ll, ll>> &with_candidates_local) {
+            ll wo_l = sample_l;
+            for (const auto &[i, j] : with_candidates_local) {
+                if (wo_l > sample_end) { break; }
+                if (wo_l < i) { without_candidates.push_back({wo_l, std::min(i - 1, sample_end)}); }
+                wo_l = j + 1;
+            }
+        }
 
-        size_t n = text.size();
-        // start point candidates for query patterns with min_factor
-        {
-            size_t s = min_factors[0].first, e = s;
-            // j-lambda+1>=0
-            if (min_factors[0].second + 1 >= lambda) { s = min_factors[0].second + 1 - lambda; }
-            for (auto [i, j] : min_factors) {
-                // j-lambda+1<=e+1
-                if (e + lambda >= j) { e = i; }
-                else {
-                    with_candidates.push_back({s, e});
-                    s = j + 1 - lambda;
-                    e = i;
-                }
+        for (const auto& p : min_factors) {
+            ll i = (ll) p.fist, j = (ll) p.second, next_with_l, next_with_r;
+            while (sample_r < i) {
+                // checkout with_candidates_local
+                if (with_l <= sample_end) { with_candidates_local.push_back({with_l, std::min(with_r, sample_end)}); }
+                with_candidates.insert(with_candidates.end(), with_candidates_local.begin(), with_candidates_local.end());
+                gen_wo_candidates(with_candidates_local);
+                with_candidates_local.clear();
+                find_next_sample_range();
+                if (sample_r >= i) { set_with_start_range(i, j, with_l, with_r); }
             }
-            with_candidates.push_back({s, e});
+            set_with_start_range(i, j, next_with_l, next_with_r);
+            if (next_with_l <= with_r) {
+                with_r = std::min(next_with_l, sample_end);
+            } else if (with_l <= sample_end) {
+                with_candidates_local.push_back({with_l, std::min(with_r, sample_end)});
+                with_l = next_with_l;
+                with_r = next_with_r;
+            }
         }
-        // start point candidates for query patterns without min_factor
-        {
-            size_t s = 0, idx = 0;
-            // e-lambda+1>=0
-            if (with_candidates[idx].first == 0) {
-                s = with_candidates[idx].second + 1;
-                idx++;
-            }
-            for (size_t end = with_candidates.size(); idx < end; idx++) {
-                auto [i, j] = with_candidates[idx];
-                // i-1 <= n-1
-                without_candidates.push_back({s, i - 1});
-                s = j + 1;
-            }
-            if (s < n) { without_candidates.push_back({s, n - 1}); }
-        }
+
+        // // start point candidates for query patterns with min_factor
+        // {
+        //     size_t s = min_factors[0].first, e = s;
+        //     // j-lambda+1>=0
+        //     if (min_factors[0].second + 1 >= lambda) { s = min_factors[0].second + 1 - lambda; }
+        //     for (auto [i, j] : min_factors) {
+        //         // j-lambda+1<=e+1
+        //         if (e + lambda >= j) { e = i; }
+        //         else {
+        //             with_candidates.push_back({s, e});
+        //             s = j + 1 - lambda;
+        //             e = i;
+        //         }
+        //     }
+        //     with_candidates.push_back({s, e});
+        // }
+        // // start point candidates for query patterns without min_factor
+        // {
+        //     size_t s = 0, idx = 0;
+        //     // e-lambda+1>=0
+        //     if (with_candidates[idx].first == 0) {
+        //         s = with_candidates[idx].second + 1;
+        //         idx++;
+        //     }
+        //     for (size_t end = with_candidates.size(); idx < end; idx++) {
+        //         auto [i, j] = with_candidates[idx];
+        //         // i-1 <= n-1
+        //         without_candidates.push_back({s, i - 1});
+        //         s = j + 1;
+        //     }
+        //     if (s < n) { without_candidates.push_back({s, n - 1}); }
+        // }
         
         // random setting
         std::random_device rd;
         std::mt19937 gen(rd());
         size_t n_with = with_candidates.size(), n_without = without_candidates.size();
+
+        std::ofstream out_with(path + "_with"), out_without(path + "_without");
+        out_with << "# number=" << cnt << " length=" << lambda << " file=" << inputTextPath
+                 << " tau_l=" << tau_l << " tau_u=" << tau_u << " lambda=" << lambda << " \n";
+        out_without << "# number=" << cnt << " length=" << lambda << " file=" << inputTextPath
+                 << " tau_l=" << tau_l << " tau_u=" << tau_u << " lambda=" << lambda << " \n";
 
         // with min_factors
         for (size_t i = 0; i < cnt; i++) {
