@@ -153,7 +153,7 @@ public:
 
 private:
     size_t tau_l, tau_u, lambda;
-    unsigned char delimiter = 254;
+    unsigned char delimiter = 127;
     index_types index_type;
     std::string inputTextPath, text;
     double masked_ratio;

@@ -19,7 +19,7 @@ using Node = k_factor_tree_node;
 private:
     Node *root;
     size_t lambda, tau_l, tau_u;
-    std::unordered_set<unsigned char> delimiters {'\0', 254};
+    std::unordered_set<unsigned char> delimiters {'\0', 127};
     //std::string text;
     std::vector<Node*> node_vector; // debug only
     std::vector<std::pair<size_t, size_t>> min_factors;
