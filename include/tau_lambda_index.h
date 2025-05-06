@@ -49,6 +49,7 @@ public:
     tau_lambda_index(std::string &mf_path, std::string &index_path, index_types index_type);
     tau_lambda_index(std::string &mf_path, std::string &index_path, std::string &outputFolder, index_types index_type, uint M);
     void serialize(std::ofstream &out);
+    void serialize_partition(std::ofstream &out1, std::ofstream &out2);
     void load(std::ifstream &in, std::string inputIndexPath, bool xbwt_only = false);
     void locate(std::ifstream &in, std::ofstream &out, bool xbwt_only = false);
     double get_masked_ratio() { return masked_ratio; }
@@ -435,6 +436,35 @@ void tau_lambda_index::serialize(std::ofstream &out) {
             lms.serialize(out, NULL, "");
         } else if (index_type == index_types::compact_suffix_trie) {
             location_trie->serialize(out);
+        } else if (index_type == index_types::hybrid) {
+            hybrid_index->serialized();
+        }
+    }
+}
+
+void tau_lambda_index::serialize(std::ofstream &out1, std::ofstream &out2) {
+    size_t length = inputTextPath.size();
+    out1.write(reinterpret_cast<char*>(&length), sizeof(length));
+    out1.write(inputTextPath.data(), length);
+
+    sdsl::write_member(index_type, out1);
+    sdsl::write_member(tau_l, out1);
+    sdsl::write_member(tau_u, out1);
+    sdsl::write_member(lambda, out1);
+    if (index_type == index_types::old_tau_lambda_type) {
+        old_tau_lambda->serialize(out1);
+    } else {
+        sdsl::write_member(masked_ratio, out1);
+        if (tau_u > 0) {
+            symbol_table_.Serialize(out1);
+            xbwt->Serialize(out1);
+        }
+        if (index_type == index_types::r_index_type) {
+            r_index->serialize(out2);
+        } else if (index_type == index_types::LMS_type) {
+            lms.serialize(out2, NULL, "");
+        } else if (index_type == index_types::compact_suffix_trie) {
+            location_trie->serialize(out2);
         } else if (index_type == index_types::hybrid) {
             hybrid_index->serialized();
         }
