@@ -60,7 +60,7 @@ add_executable(add_delimiter src/add_delimiter.cc)
 add_executable(gen_index src/gen_index.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref} ${hybrid_Ref})
 add_executable(gen_pattern src/gen_pattern.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref} ${hybrid_Ref})
 add_executable(locate src/locate.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref} ${hybrid_Ref})
-
+add_executable(serialize_partition src/serialize_partition.cc include/util/utility.cc ${LZ77_Ref} ${LMS_Ref} ${hybrid_Ref})
 
 set(COMMON_LIBS 
     ${LIB_INCLUDE_PATH}/lib/libsdsl.a 
@@ -80,3 +80,4 @@ link_directories("/usr/local/lib")
 target_link_libraries(gen_index ${COMMON_LIBS})
 target_link_libraries(gen_pattern ${COMMON_LIBS})
 target_link_libraries(locate ${COMMON_LIBS})
+target_link_libraries(serialize_partition ${COMMON_LIBS})
