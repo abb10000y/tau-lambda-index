@@ -442,7 +442,7 @@ void tau_lambda_index::serialize(std::ofstream &out) {
     }
 }
 
-void tau_lambda_index::serialize(std::ofstream &out1, std::ofstream &out2) {
+void tau_lambda_index::serialize_partition(std::ofstream &out1, std::ofstream &out2) {
     size_t length = inputTextPath.size();
     out1.write(reinterpret_cast<char*>(&length), sizeof(length));
     out1.write(inputTextPath.data(), length);
