@@ -110,8 +110,9 @@ void XBWT::failureLink(size_t& l, size_t& r) {
     if (l == 0) return; // empty string
     size_t k = P.select(last_rank(l) + 1);
     size_t j = P.enclose(k);
-    if (P.rank(j) - 1 == 0) { l = 0; }
-    else { l = last_select(P.rank(j) - 1) + 1; }
+    size_t tmp = P.rank(j);
+    if (tmp - 1 == 0) { l = 0; }
+    else { l = last_select(tmp - 1) + 1; }
     r = last_select(last_rank(l) + 1) + 1;
 }
 
