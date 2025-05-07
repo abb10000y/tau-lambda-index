@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     tau_lambda_index* idx = new tau_lambda_index();
     idx->load(inputIndex, inputIndexPath, xbwt_only);
     if (!xbwt_only) {
-        idx->locate(inputPatternFile, outputResultFile, xbwt_only);
+        idx->locate(inputPatternFile, outputResultFile);
     }
 
     inputIndex.close();
